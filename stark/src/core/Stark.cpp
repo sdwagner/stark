@@ -234,7 +234,7 @@ bool Stark::run_one_step()
 
 			this->dt /= 2.0;
 			if (this->dt < this->settings.simulation.time_step_size_lower_bound) {
-				output->print_with_new_line(fmt::format("Adaptive time step size out of bounds ({:.e}). Exiting simulation.\n", this->settings.simulation.time_step_size_lower_bound), Verbosity::Summary);
+				output->print_with_new_line(fmt::format("Adaptive time step size out of bounds ({:e}). Exiting simulation.\n", this->settings.simulation.time_step_size_lower_bound), Verbosity::Summary);
 				return false; // Not successful, not taken, and should not retry (exit simulation)
 			}
 		}
