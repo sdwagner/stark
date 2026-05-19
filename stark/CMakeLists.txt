@@ -5,15 +5,26 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build (Debug or Release)" FORCE)
 endif()
 
-# Option to disable AVX for ARM-based devices
-set(STARK_ENABLE_AVX2 ON CACHE BOOL "Flag to enable AVX for Stark and its dependencies")
+# SIMD options
+set(STARK_ENABLE_AVX2 "AUTO" CACHE STRING "Enable AVX2+FMA SIMD: AUTO, ON, or OFF. AUTO enables on x86/x86_64/AMD64.")
+set_property(CACHE STARK_ENABLE_AVX2 PROPERTY STRINGS "AUTO" "ON" "OFF")
+string(TOUPPER "${STARK_ENABLE_AVX2}" _STARK_AVX2)
+if(NOT _STARK_AVX2 MATCHES "^(AUTO|ON|OFF)$")
+	message(FATAL_ERROR "STARK_ENABLE_AVX2 must be AUTO, ON, or OFF (got: ${STARK_ENABLE_AVX2})")
+endif()
+if(_STARK_AVX2 STREQUAL "AUTO")
+	if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|X86_64|amd64|AMD64|i[3-6]86)$")
+		set(_STARK_AVX2 "ON")
+	else()
+		set(_STARK_AVX2 "OFF")
+	endif()
+endif()
+message(STATUS "Stark: AVX2 = ${_STARK_AVX2} (STARK_ENABLE_AVX2=${STARK_ENABLE_AVX2}, processor=${CMAKE_SYSTEM_PROCESSOR})")
 
-# If AVX is disabled for stark, disable it for all dependencies that use AVX
 if(NOT ${STARK_ENABLE_AVX2})
-	set(SYMX_ENABLE_AVX OFF CACHE BOOL "Flag to enable AVX for symx" FORCE)
+	set(SYMX_ENABLE_AVX2 OFF CACHE BOOL "Flag to enable AVX for symx" FORCE)
 	set(TMCD_ENABLE_AVX2 OFF CACHE BOOL "Flag to enable AVX for tmcd" FORCE)
 endif()
-
 
 # Parallel compilation in MSVC
 if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
