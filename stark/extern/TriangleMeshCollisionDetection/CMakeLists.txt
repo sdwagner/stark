@@ -6,6 +6,7 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 
 set(TMCD_ENABLE_AVX2 ON CACHE BOOL "Flag to enable AVX for TriangleMeshCollisionDetection")
+message(STATUS "TMCD: AVX2 = ${TMCD_ENABLE_AVX2} (STARK_ENABLE_AVX2=${STARK_ENABLE_AVX2}, processor=${CMAKE_SYSTEM_PROCESSOR})")
 
 # Enable SIMD and suppress compiler warnings
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")

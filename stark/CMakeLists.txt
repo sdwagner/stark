@@ -21,7 +21,7 @@ if(_STARK_AVX2 STREQUAL "AUTO")
 endif()
 message(STATUS "Stark: AVX2 = ${_STARK_AVX2} (STARK_ENABLE_AVX2=${STARK_ENABLE_AVX2}, processor=${CMAKE_SYSTEM_PROCESSOR})")
 
-if(NOT ${STARK_ENABLE_AVX2})
+if(NOT _STARK_AVX2 STREQUAL "ON")
 	set(SYMX_ENABLE_AVX2 OFF CACHE BOOL "Flag to enable AVX for symx" FORCE)
 	set(TMCD_ENABLE_AVX2 OFF CACHE BOOL "Flag to enable AVX for tmcd" FORCE)
 endif()
@@ -43,7 +43,7 @@ endif()
 # Dependencies
 set(SYMX_EIGEN_PUBLIC ON)
 set(SYMX_FMT_PUBLIC   ON)
-set(SYMX_HESS_STORAGE_FLOAT "float" CACHE STRING "Storage type for Hessian matrices (float or double)" FORCE)
+set(SYMX_HESS_STORAGE_FLOAT "double" CACHE STRING "Storage type for Hessian matrices (float or double)" FORCE)
 add_subdirectory(extern/symx)
 add_subdirectory(extern/TriangleMeshCollisionDetection)
 
@@ -205,17 +205,6 @@ target_include_directories(stark PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/extern/tinyo
 
 # Group files
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${ALL_FILES})
-
-# Conditionally increase the stack size
-## Stark comes with complex energy functions and may require a larger stack size
-set(STACK_SIZE "10480000" CACHE STRING "Linker stack size in bytes")
-
-target_link_options(stark INTERFACE
-  "$<$<CXX_COMPILER_ID:MSVC>:/STACK:${STACK_SIZE}>"
-  "$<$<CXX_COMPILER_ID:GNU>:-Wl,-z,stack-size=${STACK_SIZE}>"
-  "$<$<CXX_COMPILER_ID:Clang>:-Wl,-z,--stack_size=${STACK_SIZE}>"
-  "$<$<CXX_COMPILER_ID:AppleClang>:-Wl,-stack_size,${STACK_SIZE}>"
-)
 
 # Add /EHsc for exception handling (avoids warnings from vtkio)
 if(MSVC)
