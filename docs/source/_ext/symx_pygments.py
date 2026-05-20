@@ -58,7 +58,11 @@ class SymXCppLexer(CppLexer):
                     "EnergyFrictionalContact", "Volume", "Vector3d", "Vector2d", "Cotton_Fabric",
                     "Eigen", "Line", "Matrix3d", "PointDynamics", "Stark", "core", "PointDynamics",
                     "LabelledConnectivity", "PointSetHandler", "RigidBodyHandler", "MappedWorkspace",
-                    "Scalar", "Vector", "Matrix"
+                    "Scalar", "Vector", "Matrix", "Verbosity", "Summary", "Full", "Minimal", "Medium",
+                    "Simulation", "std", "vector", "array", "vtkio", "VTKFile", "Mesh", "BlendType", 
+                    "Linear", "PrescribedSurface", "EnergyLumpedInertia", "EnergyPrescribedPositions",
+                    "EnergySegmentStrain", "EnergyTriangleStrain", "EnergyDiscreteShells",
+                    "EnergyTetStrain", "ContactHandler", "EnergyAttachments"
                 ],
                 funcs=[
                     "PLACEHOLDER",
