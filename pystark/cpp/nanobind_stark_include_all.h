@@ -162,11 +162,19 @@ inline nb::object create_named_tuple(const std::string& typeName, const std::vec
 	nb::object collections = nb::module_::import_("collections");
 	nb::object namedtuple = collections.attr("namedtuple");
 
-	// Create a Python list for field names
-	nb::list fields;
-	for (const auto& fieldName : fieldNames) {
-		fields.append(fieldName);
+	// Create a Python list for field names.
+	// Note: the local variable is named field_list (not fields) to avoid
+	// potential conflicts with MSVC's name lookup inside Windows SDK headers.
+	nb::list field_list;
+	for (const auto& field_name : fieldNames) {
+		field_list.append(field_name);
 	}
-	nb::object tupleType = namedtuple(typeName.c_str(), fields);
-	return tupleType(*values);
+	nb::object tuple_type = namedtuple(typeName.c_str(), field_list);
+
+	// Use PyObject_Call to unpack `values` as positional args (*values in Python).
+	// This is explicit and sidesteps MSVC template-resolution issues with
+	// nanobind's operator* unpacking on nb::tuple.
+	PyObject* result = PyObject_Call(tuple_type.ptr(), values.ptr(), nullptr);
+	if (!result) throw nb::python_error();
+	return nb::steal<nb::object>(result);
 }

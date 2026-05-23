@@ -421,8 +421,6 @@ void simple_grasp()
 			1. In absence of gravity, the fingers close and squeeze the object.
 			2. Gravity is progressively turned on. The object stays between the fingers due to Coulomb friction coefficient slightly larger than the sticking threshold.
 			3. The friction coefficient is reduced to slightly below the sticking threshold. The object slides between the fingers.
-
-		This scene also shows how to anonymous lambdas to scope the script code, which is an option to avoid global variables.
 	*/
 
 	stark::Settings settings = stark::Settings();
@@ -448,43 +446,35 @@ void simple_grasp()
 	simulation.interactions->contact->set_global_params(
 		stark::EnergyFrictionalContact::GlobalParams()
 		.set_default_contact_thickness(contact_thickness)
-		.set_friction_stick_slide_threshold(0.001) // Tighther threshold for more accurate frictional forces
+		.set_friction_stick_slide_threshold(0.001) // Tighter threshold for more accurate frictional forces
 		.set_min_contact_stiffness(1e7)
 	);
 
 	// Object
-	auto [obj, obj_c] = [&]()
-		{
-		auto params = stark::Volume::Params::Soft_Rubber();
-		params.inertia.density = mass/std::pow(d, 3);
-		params.strain.elasticity_only = true;  // We don't need material damping nor strain limiting for this scene
-		params.strain.youngs_modulus = 2e3;
-		auto [V, T, H] = simulation.presets->deformables->add_volume_grid("deformable", { d, d, d }, { n, n, n }, params);
-		return std::make_tuple( H, H.contact);
-	}();
+	stark::Volume::Params obj_params = stark::Volume::Params::Soft_Rubber();
+	obj_params.inertia.density = mass/std::pow(d, 3);
+	obj_params.strain.elasticity_only = true;  // We don't need material damping nor strain limiting for this scene
+	obj_params.strain.youngs_modulus = 2e3;
+	auto [V_obj, T_obj, obj] = simulation.presets->deformables->add_volume_grid("deformable", { d, d, d }, { n, n, n }, obj_params);
+	auto obj_c = obj.contact;
 
 	// Hand
-	auto [hand, hand_c] = [&]()
-	{
-		auto [V, C, H] = simulation.presets->rigidbodies->add_box("hand", mass, { 3*d, 3*d, 3*d });
-		H.rigidbody.set_translation({ 0.0, -(3 * hd + hd + gap), 0.0 });
-		return std::make_tuple(H.rigidbody, H.contact);
-	}();
+	auto [V_hand, C_hand, H_hand] = simulation.presets->rigidbodies->add_box("hand", mass, { 3*d, 3*d, 3*d });
+	H_hand.rigidbody.set_translation({ 0.0, -(3 * hd + hd + gap), 0.0 });
+	auto hand = H_hand.rigidbody;
+	auto hand_c = H_hand.contact;
 
 	// Fingers
 	const Eigen::Vector3d fingers_size = { 0.5*d, 2*d, 2*d };
-	auto [left_finger, left_finger_c] = [&]()
-	{
-		auto [V, C, H] = simulation.presets->rigidbodies->add_box("hand", mass, fingers_size);
-		H.rigidbody.set_translation({ -(hd + 0.5 * hd + gap), -gap, 0.0 });
-		return std::make_tuple(H.rigidbody, H.contact);
-	}();
-	auto [right_finger, right_finger_c] = [&]()
-	{
-		auto [V, C, H] = simulation.presets->rigidbodies->add_box("hand", mass, fingers_size);
-		H.rigidbody.set_translation({ (hd + 0.5 * hd + gap), -gap, 0.0 });
-		return std::make_tuple(H.rigidbody, H.contact);
-	}();
+	auto [V_lf, C_lf, H_lf] = simulation.presets->rigidbodies->add_box("hand", mass, fingers_size);
+	H_lf.rigidbody.set_translation({ -(hd + 0.5 * hd + gap), -gap, 0.0 });
+	auto left_finger = H_lf.rigidbody;
+	auto left_finger_c = H_lf.contact;
+
+	auto [V_rf, C_rf, H_rf] = simulation.presets->rigidbodies->add_box("hand", mass, fingers_size);
+	H_rf.rigidbody.set_translation({ (hd + 0.5 * hd + gap), -gap, 0.0 });
+	auto right_finger = H_rf.rigidbody;
+	auto right_finger_c = H_rf.contact;
 
 	// Disable collisions
 	simulation.interactions->contact->disable_collision(hand_c, left_finger_c);

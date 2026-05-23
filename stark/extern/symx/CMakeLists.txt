@@ -258,5 +258,5 @@ target_link_options(symx INTERFACE
   "$<$<CXX_COMPILER_ID:MSVC>:/STACK:${SYMX_STACK_SIZE}>"
   "$<$<CXX_COMPILER_ID:GNU>:-Wl,-z,stack-size=${SYMX_STACK_SIZE}>"
   "$<$<CXX_COMPILER_ID:Clang>:-Wl,-z,--stack_size=${SYMX_STACK_SIZE}>"
-  "$<$<CXX_COMPILER_ID:AppleClang>:-Wl,-stack_size,${SYMX_STACK_SIZE}>"
+  "$<$<AND:$<CXX_COMPILER_ID:AppleClang>,$<STREQUAL:$<TARGET_PROPERTY:TYPE>,EXECUTABLE>>:-Wl,-stack_size,${SYMX_STACK_SIZE}>"
 )
