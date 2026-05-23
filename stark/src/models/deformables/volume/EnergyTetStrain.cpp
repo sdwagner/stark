@@ -4,9 +4,10 @@
 #include "../../time_integration.h"
 #include "../../../utils/include.h"
 
+using namespace stark;
 using namespace symx;
 
-stark::EnergyTetStrain::EnergyTetStrain(stark::core::Stark& stark, spPointDynamics dyn)
+EnergyTetStrain::EnergyTetStrain(Stark& stark, spPointDynamics dyn)
 	: dyn(dyn)
 {
 	stark.global_potential->add_potential("EnergyTetStrain", this->conn_complete,
@@ -123,7 +124,7 @@ stark::EnergyTetStrain::EnergyTetStrain(stark::core::Stark& stark, spPointDynami
 	);
 }
 
-stark::EnergyTetStrain::Handler stark::EnergyTetStrain::add(const PointSetHandler& set, const std::vector<std::array<int, 4>>& tets, const Params& params)
+EnergyTetStrain::Handler EnergyTetStrain::add(const PointSetHandler& set, const std::vector<std::array<int, 4>>& tets, const Params& params)
 {
 	set.exit_if_not_valid("EnergyTetStrain::add");
 	const int group = (int)this->youngs_modulus.size();
@@ -147,7 +148,7 @@ stark::EnergyTetStrain::Handler stark::EnergyTetStrain::add(const PointSetHandle
 	return Handler(this, group);
 }
 
-stark::EnergyTetStrain::Params stark::EnergyTetStrain::get_params(const Handler& handler) const
+EnergyTetStrain::Params EnergyTetStrain::get_params(const Handler& handler) const
 {
 	handler.exit_if_not_valid("EnergyTetStrain::get_params");
 
@@ -164,7 +165,7 @@ stark::EnergyTetStrain::Params stark::EnergyTetStrain::get_params(const Handler&
 	return params;
 }
 
-void stark::EnergyTetStrain::set_params(const Handler& handler, const Params& params)
+void EnergyTetStrain::set_params(const Handler& handler, const Params& params)
 {
 	handler.exit_if_not_valid("EnergyTetStrain::set_params");
 

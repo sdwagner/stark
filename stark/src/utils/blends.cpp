@@ -2,7 +2,10 @@
 
 #include <cmath>
 
-double stark::blend(double min, double max, double begin_time, double end_time, double current_time, BlendType blendType)
+
+namespace stark
+{
+double blend(double min, double max, double begin_time, double end_time, double current_time, BlendType blendType)
 {
     const double duration = end_time - begin_time;
     const double dt = current_time - begin_time;
@@ -44,3 +47,4 @@ double stark::blend(double min, double max, double begin_time, double end_time, 
 
     return result;
 }
+} // namespace stark

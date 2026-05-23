@@ -53,7 +53,7 @@ namespace stark
 
 	public:
 		/* Methods */
-		EnergyPrescribedPositions(core::Stark& stark, spPointDynamics dyn);
+		EnergyPrescribedPositions(Stark& stark, spPointDynamics dyn);
 		Handler add(const PointSetHandler& set, const std::vector<int>& points, const Params& params);
 		Handler add_inside_aabb(const PointSetHandler& set, const Eigen::Vector3d& aabb_center, const Eigen::Vector3d& aabb_dim, const Params& params);
 		Handler add_outside_aabb(const PointSetHandler& set, const Eigen::Vector3d& aabb_center, const Eigen::Vector3d& aabb_dim, const Params& params);
@@ -64,7 +64,7 @@ namespace stark
 		void set_target_position(const Handler& handler, int prescribed_idx, const Eigen::Vector3d& t);
 
 	private:
-		bool _is_converged_state_valid(core::Stark& stark);
+		bool _is_converged_state_valid(Stark& stark);
 	};
 }
 

@@ -8,7 +8,7 @@ namespace stark
 	{
 	public:
 		/* Methods */
-		Deformables(core::Stark& stark, spPointDynamics dyn);
+		Deformables(Stark& stark, spPointDynamics dyn);
 
 		/* Fields */
 		std::shared_ptr<DeformablesMeshOutput> output;

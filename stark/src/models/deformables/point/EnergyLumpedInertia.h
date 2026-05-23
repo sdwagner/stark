@@ -41,7 +41,7 @@ namespace stark
 
 	public:
 		/* Methods */
-		EnergyLumpedInertia(stark::core::Stark& stark, const spPointDynamics dyn);
+		EnergyLumpedInertia(Stark& stark, const spPointDynamics dyn);
 		Handler add(const PointSetHandler& set, const std::vector<int>& points, const std::vector<double>& lumped_volume, const Params& params);
 		Handler add(const PointSetHandler& set, const std::vector<double>& lumped_volume, const Params& params);
 		Handler add(const PointSetHandler& set, const std::vector<std::array<int, 2>>& edges, const Params& params);

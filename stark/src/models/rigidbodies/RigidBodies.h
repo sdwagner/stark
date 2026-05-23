@@ -30,7 +30,7 @@ namespace stark
 		RigidBodiesMeshOutput output;
 
 		/* Methods */
-		RigidBodies(core::Stark& stark, spRigidBodyDynamics rb);
+		RigidBodies(Stark& stark, spRigidBodyDynamics rb);
 		RigidBodyHandler add(double mass, const Eigen::Matrix3d& inertia_local);
 
 		void set_default_constraint_stiffness(double stiffness);

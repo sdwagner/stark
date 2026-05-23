@@ -2,6 +2,9 @@
 
 #include "../../utils/include.h"
 
+
+namespace stark
+{
 /*
 *	Note on damping:
 *		All models have a bit of damping by default to avoid purely elastic oscillations.
@@ -14,7 +17,7 @@
 *		Contact thickness is set to -1.0 by default, which will throw an error.
 */
 
-stark::Line::Params::Params(const Preset& preset)
+Line::Params::Params(const Preset& preset)
 {
 	switch (preset)
 	{
@@ -31,13 +34,13 @@ stark::Line::Params::Params(const Preset& preset)
 		break;
 	}
 }
-stark::Line::Params stark::Line::Params::Elastic_Rubberband()
+Line::Params Line::Params::Elastic_Rubberband()
 {
 	return Params(Preset::Elastic_Rubberband);
 }
 
 
-stark::Surface::Params::Params(const Preset& preset)
+Surface::Params::Params(const Preset& preset)
 {
 	switch (preset)
 	{
@@ -58,12 +61,12 @@ stark::Surface::Params::Params(const Preset& preset)
 		break;
 	}
 }
-stark::Surface::Params stark::Surface::Params::Cotton_Fabric()
+Surface::Params Surface::Params::Cotton_Fabric()
 {
 	return Params(Preset::Cotton_Fabric);
 }
 
-stark::Volume::Params::Params(const Preset& preset)
+Volume::Params::Params(const Preset& preset)
 {
 	switch (preset)
 	{
@@ -80,7 +83,8 @@ stark::Volume::Params::Params(const Preset& preset)
 		break;
 	}
 }
-stark::Volume::Params stark::Volume::Params::Soft_Rubber()
+Volume::Params Volume::Params::Soft_Rubber()
 {
 	return Params(Preset::Soft_Rubber);
 }
+} // namespace stark

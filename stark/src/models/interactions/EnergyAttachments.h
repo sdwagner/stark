@@ -20,7 +20,7 @@ namespace stark
 
 	public:
 		/* Methods */
-		EnergyAttachments(core::Stark& stark, const spPointDynamics dyn, const spRigidBodyDynamics rb);
+		EnergyAttachments(Stark& stark, const spPointDynamics dyn, const spRigidBodyDynamics rb);
 		Handler add(const PointSetHandler& set_0, const PointSetHandler& set_1, const std::vector<int>& points_0, const std::vector<int>& points_1, const Params& params);
 		Handler add(const PointSetHandler& set_0, const PointSetHandler& set_1, const std::vector<int>& points, const std::vector<std::array<int, 2>>& edges, const std::vector<std::array<double, 2>>& bary, const Params& params);
 		Handler add(const PointSetHandler& set_0, const PointSetHandler& set_1, const std::vector<int>& points, const std::vector<std::array<int, 3>>& triangles, const std::vector<std::array<double, 3>>& bary, const Params& params);
@@ -82,6 +82,6 @@ namespace stark
 		std::vector<std::pair<AttachmentType, int>> handlers_map;
 
 		/* Methods */
-		bool _is_converged_state_valid(stark::core::Stark& stark);
+		bool _is_converged_state_valid(Stark& stark);
 	};
 }

@@ -8,7 +8,7 @@ namespace stark
 	{
 	public:
 		/* Methods */
-		Presets(core::Stark& stark, std::shared_ptr<Deformables> deformables, std::shared_ptr<RigidBodies> rigidbodies, std::shared_ptr<Interactions> interactions);
+		Presets(Stark& stark, std::shared_ptr<Deformables> deformables, std::shared_ptr<RigidBodies> rigidbodies, std::shared_ptr<Interactions> interactions);
 
 		/* Fields */
 		std::shared_ptr<DeformablesPresets> deformables;

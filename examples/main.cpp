@@ -673,15 +673,13 @@ void magnetic_deformables_implicit()
 	}
 
 	//// Energy potential definition
-	stark::core::Stark& stark_core = simulation.get_stark();
 	stark::PointDynamics* dyn = simulation.deformables->point_sets.get();
-
-	stark_core.global_potential->add_potential("EnergyMagneticAttraction", magnetic_vertices,
+	simulation.stark.global_potential->add_potential("EnergyMagneticAttraction", magnetic_vertices,
 		[&](MappedWorkspace<double>& mws, Element& elem)
 		{
 			Vector v1 = mws.make_vector(dyn->v1.data, elem["point"]);
 			Vector x0 = mws.make_vector(dyn->x0.data, elem["point"]);
-			Scalar dt = mws.make_scalar(stark_core.dt);
+			Scalar dt = mws.make_scalar(simulation.stark.dt);
 
 			Scalar k = mws.make_scalar(magnet_force);
 			Vector m = mws.make_vector(magnet_center);

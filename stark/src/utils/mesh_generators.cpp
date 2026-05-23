@@ -6,9 +6,11 @@
 #include "include.h"
 
 
-stark::Mesh<3> as_mesh(par_shapes_mesh* pm)
+namespace stark
 {
-	stark::Mesh<3> mesh;
+Mesh<3> as_mesh(par_shapes_mesh* pm)
+{
+	Mesh<3> mesh;
 
 	mesh.vertices.resize(pm->npoints);
 	for (int i = 0; i < pm->npoints; i++) {
@@ -25,13 +27,13 @@ stark::Mesh<3> as_mesh(par_shapes_mesh* pm)
 }
 
 
-stark::Mesh<3> stark::make_sphere(const double radius, const int subdivisions)
+Mesh<3> make_sphere(const double radius, const int subdivisions)
 {
 	Mesh m = as_mesh(par_shapes_create_subdivided_sphere(subdivisions));
 	scale(m.vertices, radius);
 	return m;
 }
-stark::Mesh<3> stark::make_box(const Eigen::Vector3d& size, const bool lid)
+Mesh<3> make_box(const Eigen::Vector3d& size, const bool lid)
 {
 	Mesh<3> m = as_mesh(par_shapes_create_cube());
 	if (!lid) {
@@ -59,11 +61,11 @@ stark::Mesh<3> stark::make_box(const Eigen::Vector3d& size, const bool lid)
 	scale(m.vertices, size);
 	return m;
 }
-stark::Mesh<3> stark::make_box(const double size, const bool lid)
+Mesh<3> make_box(const double size, const bool lid)
 {
 	return make_box({size, size, size}, lid);
 }
-stark::Mesh<3> stark::make_cylinder(const double radius, const double full_height, const int slices, const int stacks)
+Mesh<3> make_cylinder(const double radius, const double full_height, const int slices, const int stacks)
 {
 	const std::array<float, 3> c_t = {0, 0, 1};
 	const std::array<float, 3> c_b = {0, 0, 0};
@@ -81,7 +83,7 @@ stark::Mesh<3> stark::make_cylinder(const double radius, const double full_heigh
 	scale(m.vertices, {radius, radius, full_height });
 	return m;
 }
-stark::Mesh<3> stark::make_torus(const double outer_radius, const double inner_radius, const int slices, const int stacks)
+Mesh<3> make_torus(const double outer_radius, const double inner_radius, const int slices, const int stacks)
 {
 	Mesh m = as_mesh(par_shapes_create_torus(slices, stacks, (float)(inner_radius/outer_radius)));
 	auto [v, t] = clean_triangle_mesh(m.vertices, m.conn, /* merge_by_distance = */inner_radius/(double)slices);
@@ -90,14 +92,14 @@ stark::Mesh<3> stark::make_torus(const double outer_radius, const double inner_r
 	scale(m.vertices, outer_radius);
 	return m;
 }
-stark::Mesh<3> stark::make_knot(const double scale_, const double inner_radius, const int slices, const int stacks)
+Mesh<3> make_knot(const double scale_, const double inner_radius, const int slices, const int stacks)
 {
 	Mesh m = as_mesh(par_shapes_create_trefoil_knot(slices, stacks, (float)(inner_radius/scale_)));
 	scale(m.vertices, scale_);
 	return m;
 }
 
-void stark::generate_triangle_grid(std::vector<Eigen::Vector3d>& out_vertices, std::vector<std::array<int, 3>>& out_connectivity, const Eigen::Vector2d& center, const Eigen::Vector2d& dimensions, const std::array<int, 2>& n_quads_per_dim, const double z)
+void generate_triangle_grid(std::vector<Eigen::Vector3d>& out_vertices, std::vector<std::array<int, 3>>& out_connectivity, const Eigen::Vector2d& center, const Eigen::Vector2d& dimensions, const std::array<int, 2>& n_quads_per_dim, const double z)
 {
 	const Eigen::Vector2d bottom = center - 0.5 * dimensions;
 	const Eigen::Vector2d top = center + 0.5 * dimensions;
@@ -165,13 +167,13 @@ void stark::generate_triangle_grid(std::vector<Eigen::Vector3d>& out_vertices, s
 		}
 	}
 }
-stark::Mesh<3> stark::generate_triangle_grid(const Eigen::Vector2d& center, const Eigen::Vector2d& dimensions, const std::array<int, 2>& n_quads_per_dim, const double z)
+Mesh<3> generate_triangle_grid(const Eigen::Vector2d& center, const Eigen::Vector2d& dimensions, const std::array<int, 2>& n_quads_per_dim, const double z)
 {
 	Mesh<3> mesh;
 	generate_triangle_grid(mesh.vertices, mesh.conn, center, dimensions, n_quads_per_dim, z);
 	return mesh;
 }
-void stark::generate_cylindrical_triangle_mesh(std::vector<Eigen::Vector3d>& out_vertices, std::vector<std::array<int, 3>>& out_connectivity, double radius, double height, const std::array<int, 2>& n_quads_per_dim)
+void generate_cylindrical_triangle_mesh(std::vector<Eigen::Vector3d>& out_vertices, std::vector<std::array<int, 3>>& out_connectivity, double radius, double height, const std::array<int, 2>& n_quads_per_dim)
 {
 	// Number of quads along the circumference:
 	const int n_quads_circumference = n_quads_per_dim[0];
@@ -254,14 +256,14 @@ void stark::generate_cylindrical_triangle_mesh(std::vector<Eigen::Vector3d>& out
 	}
 }
 
-stark::Mesh<3> stark::generate_cylindrical_triangle_mesh(double radius, double height, const std::array<int, 2>& n_quads_per_dim)
+Mesh<3> generate_cylindrical_triangle_mesh(double radius, double height, const std::array<int, 2>& n_quads_per_dim)
 {
-	stark::Mesh<3> mesh;
+	Mesh<3> mesh;
 	generate_cylindrical_triangle_mesh(mesh.vertices, mesh.conn, radius, height, n_quads_per_dim);
 	return mesh;
 }
 
-void stark::generate_tet_grid(std::vector<Eigen::Vector3d>& out_vertices, std::vector<std::array<int, 4>>& out_tets, const Eigen::Vector3d& center, const Eigen::Vector3d& dimensions, const std::array<int, 3>& n_quads_per_dim)
+void generate_tet_grid(std::vector<Eigen::Vector3d>& out_vertices, std::vector<std::array<int, 4>>& out_tets, const Eigen::Vector3d& center, const Eigen::Vector3d& dimensions, const std::array<int, 3>& n_quads_per_dim)
 {
 	const Eigen::Vector3d bottom = center - 0.5 * dimensions;
 	const Eigen::Vector3d top = center + 0.5 * dimensions;
@@ -378,13 +380,13 @@ void stark::generate_tet_grid(std::vector<Eigen::Vector3d>& out_vertices, std::v
 		}
 	}
 }
-stark::Mesh<4> stark::generate_tet_grid(const Eigen::Vector3d& center, const Eigen::Vector3d& dimensions, const std::array<int, 3>& n_quads_per_dim)
+Mesh<4> generate_tet_grid(const Eigen::Vector3d& center, const Eigen::Vector3d& dimensions, const std::array<int, 3>& n_quads_per_dim)
 {
 	Mesh<4> mesh;
 	generate_tet_grid(mesh.vertices, mesh.conn, center, dimensions, n_quads_per_dim);
 	return mesh;
 }
-void stark::generate_segment_line(std::vector<Eigen::Vector3d>& out_vertices, std::vector<std::array<int, 2>>& out_connectivity, const Eigen::Vector3d& begin, const Eigen::Vector3d& end, const int n_segments)
+void generate_segment_line(std::vector<Eigen::Vector3d>& out_vertices, std::vector<std::array<int, 2>>& out_connectivity, const Eigen::Vector3d& begin, const Eigen::Vector3d& end, const int n_segments)
 {
 	out_vertices.resize(n_segments + 1);
 	out_connectivity.resize(n_segments);
@@ -396,9 +398,10 @@ void stark::generate_segment_line(std::vector<Eigen::Vector3d>& out_vertices, st
 		out_connectivity[i] = { i, i + 1 };
 	}
 }
-stark::Mesh<2> stark::generate_segment_line(const Eigen::Vector3d& begin, const Eigen::Vector3d& end, const int n_segments)
+Mesh<2> generate_segment_line(const Eigen::Vector3d& begin, const Eigen::Vector3d& end, const int n_segments)
 {
 	Mesh<2> mesh;
 	generate_segment_line(mesh.vertices, mesh.conn, begin, end, n_segments);
 	return mesh;
 }
+} // namespace stark

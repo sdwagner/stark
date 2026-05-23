@@ -7,7 +7,7 @@
 #include "Callbacks.h"
 #include "EventDrivenScript.h"
 
-namespace stark::core
+namespace stark
 {
 	class Stark
 	{

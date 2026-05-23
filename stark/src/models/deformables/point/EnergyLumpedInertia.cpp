@@ -3,9 +3,10 @@
 #include "../../time_integration.h"
 #include "../../../utils/include.h"
 
+using namespace stark;
 using namespace symx;
 
-stark::EnergyLumpedInertia::EnergyLumpedInertia(stark::core::Stark& stark, const spPointDynamics dyn)
+EnergyLumpedInertia::EnergyLumpedInertia(Stark& stark, const spPointDynamics dyn)
 	: dyn(dyn)
 {
 	// Energy definition
@@ -49,7 +50,7 @@ stark::EnergyLumpedInertia::EnergyLumpedInertia(stark::core::Stark& stark, const
 	);
 }
 
-stark::EnergyLumpedInertia::Handler stark::EnergyLumpedInertia::add(const PointSetHandler& set, const std::vector<int>& points, const std::vector<double>& lumped_volume, const Params& params)
+EnergyLumpedInertia::Handler EnergyLumpedInertia::add(const PointSetHandler& set, const std::vector<int>& points, const std::vector<double>& lumped_volume, const Params& params)
 {
 	set.exit_if_not_valid("EnergyLumpedInertia::add");
 	const int group = (int)this->density.size();
@@ -70,7 +71,7 @@ stark::EnergyLumpedInertia::Handler stark::EnergyLumpedInertia::add(const PointS
 
 	return Handler(this, group);
 }
-stark::EnergyLumpedInertia::Handler stark::EnergyLumpedInertia::add(const PointSetHandler& set, const std::vector<double>& lumped_volume, const Params& params)
+EnergyLumpedInertia::Handler EnergyLumpedInertia::add(const PointSetHandler& set, const std::vector<double>& lumped_volume, const Params& params)
 {
 	set.exit_if_not_valid("EnergyLumpedInertia::add");
 	const int n = set.size();
@@ -92,7 +93,7 @@ stark::EnergyLumpedInertia::Handler stark::EnergyLumpedInertia::add(const PointS
 
 	return this->add(set, points, nonzero_lumped_volume, params);
 }
-stark::EnergyLumpedInertia::Handler stark::EnergyLumpedInertia::add(const PointSetHandler& set, const std::vector<std::array<int, 2>>& edges, const Params& params)
+EnergyLumpedInertia::Handler EnergyLumpedInertia::add(const PointSetHandler& set, const std::vector<std::array<int, 2>>& edges, const Params& params)
 {
 	set.exit_if_not_valid("EnergyLumpedInertia::add");
 	std::vector<double> lumped_volume(set.size(), 0.0);
@@ -113,7 +114,7 @@ stark::EnergyLumpedInertia::Handler stark::EnergyLumpedInertia::add(const PointS
 
 	return this->add(set, lumped_volume, params);
 }
-stark::EnergyLumpedInertia::Handler stark::EnergyLumpedInertia::add(const PointSetHandler& set, const std::vector<std::array<int, 3>>& triangles, const Params& params)
+EnergyLumpedInertia::Handler EnergyLumpedInertia::add(const PointSetHandler& set, const std::vector<std::array<int, 3>>& triangles, const Params& params)
 {
 	set.exit_if_not_valid("EnergyLumpedInertia::add");
 	std::vector<double> lumped_volume(set.size(), 0.0);
@@ -136,7 +137,7 @@ stark::EnergyLumpedInertia::Handler stark::EnergyLumpedInertia::add(const PointS
 
 	return this->add(set, lumped_volume, params);
 }
-stark::EnergyLumpedInertia::Handler stark::EnergyLumpedInertia::add(const PointSetHandler& set, const std::vector<std::array<int, 4>>& tets, const Params& params)
+EnergyLumpedInertia::Handler EnergyLumpedInertia::add(const PointSetHandler& set, const std::vector<std::array<int, 4>>& tets, const Params& params)
 {
 	set.exit_if_not_valid("EnergyLumpedInertia::add");
 	std::vector<double> lumped_volume(set.size(), 0.0);
@@ -163,7 +164,7 @@ stark::EnergyLumpedInertia::Handler stark::EnergyLumpedInertia::add(const PointS
 	return this->add(set, lumped_volume, params);
 }
 
-stark::EnergyLumpedInertia::Params stark::EnergyLumpedInertia::get_params(const Handler& handler) const
+EnergyLumpedInertia::Params EnergyLumpedInertia::get_params(const Handler& handler) const
 {
 	handler.exit_if_not_valid("EnergyLumpedInertia::get_params");
 	const int group = handler.get_idx();
@@ -173,7 +174,7 @@ stark::EnergyLumpedInertia::Params stark::EnergyLumpedInertia::get_params(const 
 	params.damping = this->damping[group];
 	return params;
 }
-void stark::EnergyLumpedInertia::set_params(const Handler& handler, const Params& params)
+void EnergyLumpedInertia::set_params(const Handler& handler, const Params& params)
 {
 	handler.exit_if_not_valid("EnergyLumpedInertia::set_params");
 	const int group = handler.get_idx();
@@ -182,7 +183,7 @@ void stark::EnergyLumpedInertia::set_params(const Handler& handler, const Params
 	this->is_quasistatic[group] = (double)params.quasistatic;
 }
 
-double stark::EnergyLumpedInertia::get_mass(const Handler& handler) const
+double EnergyLumpedInertia::get_mass(const Handler& handler) const
 {
 	handler.exit_if_not_valid("EnergyLumpedInertia::get_mass");
 	const int group = handler.get_idx();

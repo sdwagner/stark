@@ -3,9 +3,10 @@
 #include "../../time_integration.h"
 #include "../../../utils/include.h"
 
+using namespace stark;
 using namespace symx;
 
-stark::EnergySegmentStrain::EnergySegmentStrain(stark::core::Stark& stark, spPointDynamics dyn)
+EnergySegmentStrain::EnergySegmentStrain(Stark& stark, spPointDynamics dyn)
 	: dyn(dyn)
 {
 	stark.global_potential->add_potential("EnergySegmentStrain", this->conn_complete,
@@ -88,7 +89,7 @@ stark::EnergySegmentStrain::EnergySegmentStrain(stark::core::Stark& stark, spPoi
 		}
 	);
 }
-stark::EnergySegmentStrain::Handler stark::EnergySegmentStrain::add(const PointSetHandler& set, const std::vector<std::array<int, 2>>& segments, const Params& params)
+EnergySegmentStrain::Handler EnergySegmentStrain::add(const PointSetHandler& set, const std::vector<std::array<int, 2>>& segments, const Params& params)
 {
 	set.exit_if_not_valid("EnergySegmentStrain::add");
 	const int group = (int)this->youngs_modulus.size();
@@ -111,7 +112,7 @@ stark::EnergySegmentStrain::Handler stark::EnergySegmentStrain::add(const PointS
 
 	return Handler(this, group);
 }
-stark::EnergySegmentStrain::Params stark::EnergySegmentStrain::get_params(const Handler& handler) const
+EnergySegmentStrain::Params EnergySegmentStrain::get_params(const Handler& handler) const
 {
 	handler.exit_if_not_valid("EnergySegmentStrain::get_params");
 	const int group = handler.get_idx();
@@ -126,7 +127,7 @@ stark::EnergySegmentStrain::Params stark::EnergySegmentStrain::get_params(const 
 	params.strain_limit_stiffness = this->strain_limit_stiffness[group];
 	return params;
 }
-void stark::EnergySegmentStrain::set_params(const Handler& handler, const Params& params)
+void EnergySegmentStrain::set_params(const Handler& handler, const Params& params)
 {
 	handler.exit_if_not_valid("EnergySegmentStrain::set_params");
 

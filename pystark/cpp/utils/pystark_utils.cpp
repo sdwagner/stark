@@ -19,7 +19,7 @@ auto return_tet_mesh(const Mesh<4>& m)
 void pystark_utils_impl(nb::module_& m)
 {
     // blends.h
-    nb::enum_<stark::BlendType>(m, "BlendType")
+    nb::enum_<BlendType>(m, "BlendType")
         .value("Instant", BlendType::Instant)
         .value("Linear", BlendType::Linear)
         .value("EaseIn", BlendType::EaseIn)

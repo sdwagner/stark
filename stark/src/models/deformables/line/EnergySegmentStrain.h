@@ -36,7 +36,7 @@ namespace stark
 
 	public:
 		/* Methods */
-		EnergySegmentStrain(core::Stark& stark, spPointDynamics dyn);
+		EnergySegmentStrain(Stark& stark, spPointDynamics dyn);
 		Handler add(const PointSetHandler& set, const std::vector<std::array<int, 2>>& segments, const Params& params);
 		Params get_params(const Handler& handler) const;
 		void set_params(const Handler& handler, const Params& params);

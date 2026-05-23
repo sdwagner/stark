@@ -4,16 +4,17 @@
 #include "../time_integration.h"
 #include "../../utils/include.h"
 
+using namespace stark;
 using namespace symx;
 
-stark::RigidBodyDynamics::RigidBodyDynamics(stark::core::Stark& stark)
+RigidBodyDynamics::RigidBodyDynamics(Stark& stark)
 {
 	stark.global_potential->add_dof(this->v1, "rigid.v1");
 	stark.global_potential->add_dof(this->w1, "rigid.w1");
 	stark.callbacks->add_before_time_step([&]() { this->_before_time_step(stark); });
 	stark.callbacks->add_on_time_step_accepted([&]() { this->_on_time_step_accepted(stark); });
 }
-int stark::RigidBodyDynamics::add(const std::string& label)
+int RigidBodyDynamics::add(const std::string& label)
 {
 	const int id = (int)this->t0.size();
 	this->t0.push_back(Eigen::Vector3d::Zero());
@@ -34,16 +35,16 @@ int stark::RigidBodyDynamics::add(const std::string& label)
 
 	return id;
 }
-int stark::RigidBodyDynamics::get_n_bodies() const
+int RigidBodyDynamics::get_n_bodies() const
 {
 	return (int)this->t0.size();
 }
 
-Vector stark::RigidBodyDynamics::get_x1(MappedWorkspace<double>& mws, const Index& rb_idx, const Vector& x_loc, const Scalar& dt)
+Vector RigidBodyDynamics::get_x1(MappedWorkspace<double>& mws, const Index& rb_idx, const Vector& x_loc, const Scalar& dt)
 {
 	return this->get_x1(mws, rb_idx, std::vector<Vector>({ x_loc }), dt)[0];
 }
-std::vector<Vector> stark::RigidBodyDynamics::get_x1(MappedWorkspace<double>& mws, const Index& rb_idx, const std::vector<Vector>& x_loc, const Scalar& dt)
+std::vector<Vector> RigidBodyDynamics::get_x1(MappedWorkspace<double>& mws, const Index& rb_idx, const std::vector<Vector>& x_loc, const Scalar& dt)
 {
 	Vector v1 = mws.make_vector(this->v1, rb_idx);
 	Vector w1 = mws.make_vector(this->w1, rb_idx);
@@ -59,11 +60,11 @@ std::vector<Vector> stark::RigidBodyDynamics::get_x1(MappedWorkspace<double>& mw
 	}
 	return x1;
 }
-Vector stark::RigidBodyDynamics::get_v1(MappedWorkspace<double>& mws, const Index& rb_idx, const Vector& x_loc, const Scalar& dt)
+Vector RigidBodyDynamics::get_v1(MappedWorkspace<double>& mws, const Index& rb_idx, const Vector& x_loc, const Scalar& dt)
 {
 	return this->get_v1(mws, rb_idx, std::vector<Vector>({ x_loc }), dt)[0];
 }
-std::vector<Vector> stark::RigidBodyDynamics::get_v1(MappedWorkspace<double>& mws, const Index& rb_idx, const std::vector<Vector>& x_loc, const Scalar& dt)
+std::vector<Vector> RigidBodyDynamics::get_v1(MappedWorkspace<double>& mws, const Index& rb_idx, const std::vector<Vector>& x_loc, const Scalar& dt)
 {
 	Vector v1 = mws.make_vector(this->v1, rb_idx);
 	Vector w1 = mws.make_vector(this->w1, rb_idx);
@@ -82,13 +83,13 @@ std::vector<Vector> stark::RigidBodyDynamics::get_v1(MappedWorkspace<double>& mw
 	}
 	return v1_glob;
 }
-Vector stark::RigidBodyDynamics::get_d1(MappedWorkspace<double>& mws, const Index& rb_idx, const Vector& d_loc, const Scalar& dt)
+Vector RigidBodyDynamics::get_d1(MappedWorkspace<double>& mws, const Index& rb_idx, const Vector& d_loc, const Scalar& dt)
 {
 	Vector w1 = mws.make_vector(this->w1, rb_idx);
 	Vector q0 = mws.make_vector(this->q0_, rb_idx);
 	return integrate_loc_direction(d_loc, q0, w1, dt);
 }
-std::array<Vector, 2> stark::RigidBodyDynamics::get_x1_d1(MappedWorkspace<double>& mws, const Index& rb_idx, const Vector& x_loc, const Vector& d_loc, const Scalar& dt)
+std::array<Vector, 2> RigidBodyDynamics::get_x1_d1(MappedWorkspace<double>& mws, const Index& rb_idx, const Vector& x_loc, const Vector& d_loc, const Scalar& dt)
 {
 	Vector v1 = mws.make_vector(this->v1, rb_idx);
 	Vector w1 = mws.make_vector(this->w1, rb_idx);
@@ -99,7 +100,7 @@ std::array<Vector, 2> stark::RigidBodyDynamics::get_x1_d1(MappedWorkspace<double
 	Vector d1 = integrate_loc_direction(d_loc, q0, w1, dt);
 	return { x1, d1 };
 }
-std::array<Vector, 2> stark::RigidBodyDynamics::get_x0_x1(MappedWorkspace<double>& mws, const Index& rb_idx, const Vector& x_loc, const Scalar& dt)
+std::array<Vector, 2> RigidBodyDynamics::get_x0_x1(MappedWorkspace<double>& mws, const Index& rb_idx, const Vector& x_loc, const Scalar& dt)
 {
 	Vector v1 = mws.make_vector(this->v1, rb_idx);
 	Vector w1 = mws.make_vector(this->w1, rb_idx);
@@ -111,29 +112,29 @@ std::array<Vector, 2> stark::RigidBodyDynamics::get_x0_x1(MappedWorkspace<double
 	return { x0, x1 };
 }
 
-Eigen::Vector3d stark::RigidBodyDynamics::get_x1(int rb, const Eigen::Vector3d& x_loc, double dt) const
+Eigen::Vector3d RigidBodyDynamics::get_x1(int rb, const Eigen::Vector3d& x_loc, double dt) const
 {
 	return integrate_loc_point(x_loc, this->t0[rb], this->q0[rb], this->v1[rb], this->w1[rb], dt);
 }
-Eigen::Vector3d stark::RigidBodyDynamics::get_d1(int rb, const Eigen::Vector3d& d_loc, double dt) const
+Eigen::Vector3d RigidBodyDynamics::get_d1(int rb, const Eigen::Vector3d& d_loc, double dt) const
 {
 	return integrate_loc_direction(d_loc, this->q0[rb], this->w1[rb], dt);
 }
 
-Eigen::Vector3d stark::RigidBodyDynamics::get_position_at(int rb, const Eigen::Vector3d& x_loc) const
+Eigen::Vector3d RigidBodyDynamics::get_position_at(int rb, const Eigen::Vector3d& x_loc) const
 {
 	return local_to_global_point(x_loc, this->R1[rb], this->t1[rb]);
 }
-Eigen::Vector3d stark::RigidBodyDynamics::get_velocity_at(int rb, const Eigen::Vector3d& x_loc) const
+Eigen::Vector3d RigidBodyDynamics::get_velocity_at(int rb, const Eigen::Vector3d& x_loc) const
 {
 	return this->v1[rb] + this->w1[rb].cross((this->get_position_at(rb, x_loc) - this->t1[rb]));
 }
-Eigen::Vector3d stark::RigidBodyDynamics::get_direction(int rb, const Eigen::Vector3d& d_loc) const
+Eigen::Vector3d RigidBodyDynamics::get_direction(int rb, const Eigen::Vector3d& d_loc) const
 {
 	return local_to_global_direction(d_loc, this->R1[rb]);
 }
 
-void stark::RigidBodyDynamics::_before_time_step(stark::core::Stark& stark)
+void RigidBodyDynamics::_before_time_step(Stark& stark)
 {
 	// Quaternions
 	this->q0_.resize(this->q0.size());
@@ -146,7 +147,7 @@ void stark::RigidBodyDynamics::_before_time_step(stark::core::Stark& stark)
 	std::fill(this->v1.begin(), this->v1.end(), Eigen::Vector3d::Zero());
 	std::fill(this->w1.begin(), this->w1.end(), Eigen::Vector3d::Zero());
 }
-void stark::RigidBodyDynamics::_on_time_step_accepted(stark::core::Stark& stark)
+void RigidBodyDynamics::_on_time_step_accepted(Stark& stark)
 {
 	const double dt = stark.dt;
 

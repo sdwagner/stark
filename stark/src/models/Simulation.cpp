@@ -1,46 +1,48 @@
 #include "Simulation.h"
 
+using namespace stark;
 
-double stark::Simulation::get_time() const
+
+double Simulation::get_time() const
 {
 	return this->stark.current_time;
 }
 
-double stark::Simulation::get_time_step_size() const
+double Simulation::get_time_step_size() const
 {
 	return this->stark.dt;
 }
 
-int stark::Simulation::get_frame() const
+int Simulation::get_frame() const
 {
 	return this->stark.current_frame;
 }
 
-Eigen::Vector3d stark::Simulation::get_gravity() const
+Eigen::Vector3d Simulation::get_gravity() const
 {
 	return this->stark.gravity;
 }
 
-void stark::Simulation::set_gravity(const Eigen::Vector3d& gravity)
+void Simulation::set_gravity(const Eigen::Vector3d& gravity)
 {
 	this->stark.gravity = gravity;
 }
 
-symx::Logger& stark::Simulation::get_logger()
+symx::Logger& Simulation::get_logger()
 {
 	return *this->stark.context->logger;
 }
 
-const stark::core::Settings& stark::Simulation::get_settings() const
+const Settings& Simulation::get_settings() const
 {
 	return this->stark.settings;
 }
 
-void stark::Simulation::add_time_event(double t0, double t1, std::function<void(double)> action)
+void Simulation::add_time_event(double t0, double t1, std::function<void(double)> action)
 {
 	this->add_time_event(t0, t1, [action](double t, EventInfo& event_info) { action(t); });
 }
-void stark::Simulation::add_time_event(double t0, double t1, std::function<void(double, EventInfo&)> action)
+void Simulation::add_time_event(double t0, double t1, std::function<void(double, EventInfo&)> action)
 {
 	this->stark.script.add_event(
 		/* action = */ [action, this](EventInfo& event_info) { action(this->get_time(), event_info); },
@@ -49,17 +51,22 @@ void stark::Simulation::add_time_event(double t0, double t1, std::function<void(
 	);
 }
 
-void stark::Simulation::run(std::function<void()> callback)
+void Simulation::run(std::function<void()> callback)
 {
 	this->run(std::numeric_limits<double>::max(), callback);
 }
 
-stark::EventDrivenScript& stark::Simulation::get_script()
+EventDrivenScript& Simulation::get_script()
 {
 	return this->stark.script;
 }
 
-void stark::Simulation::run(double duration, std::function<void()> user_callback)
+spCallbacks &Simulation::get_callbacks()
+{
+    return this->stark.callbacks;
+}
+
+void Simulation::run(double duration, std::function<void()> user_callback)
 {
 	this->stark.run(duration, 
 		[user_callback, this]()
@@ -70,18 +77,13 @@ void stark::Simulation::run(double duration, std::function<void()> user_callback
 	);
 }
 
-void stark::Simulation::run_one_time_step()
+void Simulation::run_one_time_step()
 {
 	this->stark.script.run_a_cycle(this->get_time());
 	this->stark.run_one_step();
 }
 
-stark::core::Stark& stark::Simulation::get_stark()
-{
-	return this->stark;
-}
-
-stark::Simulation::Simulation(const core::Settings& settings)
+Simulation::Simulation(const Settings& settings)
 	: stark(settings)
 {
 	// Base dynamics

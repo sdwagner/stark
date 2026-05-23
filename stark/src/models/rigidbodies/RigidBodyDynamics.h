@@ -35,7 +35,7 @@ namespace stark
 		std::vector<std::string> labels;
 
 		/* Methods */
-		RigidBodyDynamics(core::Stark& stark);
+		RigidBodyDynamics(Stark& stark);
 		int add(const std::string& label = "");
 		int get_n_bodies() const;
 
@@ -58,8 +58,8 @@ namespace stark
 		Eigen::Vector3d get_direction(int rb, const Eigen::Vector3d& d_loc) const;
 
 	private:
-		void _before_time_step(stark::core::Stark& stark);
-		void _on_time_step_accepted(stark::core::Stark& stark);
+		void _before_time_step(Stark& stark);
+		void _on_time_step_accepted(Stark& stark);
 	};
 	using spRigidBodyDynamics = std::shared_ptr<RigidBodyDynamics>;
 }

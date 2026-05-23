@@ -28,7 +28,7 @@ namespace stark
 	{
 	public:
 		/* Methods */
-		RigidBodyPresets(core::Stark& stark, std::shared_ptr<RigidBodies> rigidbodies, std::shared_ptr<Interactions> interactions);
+		RigidBodyPresets(Stark& stark, std::shared_ptr<RigidBodies> rigidbodies, std::shared_ptr<Interactions> interactions);
 
 		RigidBody::Handler add(const std::string& output_label, double mass, const Eigen::Matrix3d& inertia_local,
 			const std::vector<Eigen::Vector3d>& collision_vertices, const std::vector<std::array<int, 3>>& collision_triangles,

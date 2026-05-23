@@ -17,7 +17,7 @@ namespace stark
 	{
 	public:
 		/* Methods */
-		RigidBodiesMeshOutput(core::Stark& stark, spRigidBodyDynamics rb);
+		RigidBodiesMeshOutput(Stark& stark, spRigidBodyDynamics rb);
 		void add_point_mesh(const std::string& label, const RigidBodyHandler& rb, const std::vector<Eigen::Vector3d>& vertices);
 		void add_segment_mesh(const std::string& label, const RigidBodyHandler& rb, const std::vector<Eigen::Vector3d>& vertices, const std::vector<std::array<int, 2>>& conn);
 		void add_triangle_mesh(const std::string& label, const RigidBodyHandler& rb, const std::vector<Eigen::Vector3d>& vertices, const std::vector<std::array<int, 3>>& conn);
@@ -56,9 +56,9 @@ namespace stark
 		std::vector<std::array<int, 4>> conn_tets;
 
 		/* Methods */
-		void _write_frame(core::Stark& stark);
+		void _write_frame(Stark& stark);
 
 		template<std::size_t N>
-		void _write(core::Stark& stark, const MeshOutputGroups& groups, const std::vector<Mesh<N>>& meshes, std::vector<std::array<int, N>>& conn_buffer);
+		void _write(Stark& stark, const MeshOutputGroups& groups, const std::vector<Mesh<N>>& meshes, std::vector<std::array<int, N>>& conn_buffer);
 	};
 }

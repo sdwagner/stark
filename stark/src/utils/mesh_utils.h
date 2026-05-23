@@ -113,7 +113,7 @@ namespace stark
 	template<std::size_t N>
 	Mesh<N> load_vtk(const std::string& path)
 	{
-		stark::Mesh<N> m;
+		Mesh<N> m;
 		load_vtk(m.vertices, m.conn, path);
 		return m;
 	}

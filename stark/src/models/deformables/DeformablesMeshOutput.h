@@ -17,7 +17,7 @@ namespace stark
 	{
 	public:
 		/* Methods */
-		DeformablesMeshOutput(core::Stark& stark, spPointDynamics dyn);
+		DeformablesMeshOutput(Stark& stark, spPointDynamics dyn);
 		void add_point_set(const std::string& label, const PointSetHandler& set);
 		void add_point_set(const std::string& label, const PointSetHandler& set, const std::vector<int>& conn);
 		void add_segment_mesh(const std::string& label, const PointSetHandler& set, const std::vector<std::array<int, 2>>& conn);
@@ -60,9 +60,9 @@ namespace stark
 		std::vector<std::array<int, 4>> conn_tets;
 
 		/* Methods */
-		void _write_frame(stark::core::Stark& stark);
+		void _write_frame(Stark& stark);
 
 		template<std::size_t N>
-		void _write(stark::core::Stark& stark, const stark::MeshOutputGroups& groups, const std::vector<stark::DeformablesMeshOutput::Mesh<N>>& meshes, std::vector<std::array<int, N>>& conn_buffer);
+		void _write(Stark& stark, const MeshOutputGroups& groups, const std::vector<DeformablesMeshOutput::Mesh<N>>& meshes, std::vector<std::array<int, N>>& conn_buffer);
 	};
 }

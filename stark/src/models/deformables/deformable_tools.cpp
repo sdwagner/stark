@@ -2,9 +2,13 @@
 
 #include "../../utils/include.h"
 
+
+
+namespace stark
+{
 using namespace symx;
 
-Matrix stark::triangle_jacobian(const std::vector<Vector>& x)
+Matrix triangle_jacobian(const std::vector<Vector>& x)
 {
 	// Projection matrix
 	Vector u = (x[1] - x[0]).normalized();
@@ -19,11 +23,11 @@ Matrix stark::triangle_jacobian(const std::vector<Vector>& x)
 	Matrix DX = Matrix(collect_scalars({ Xp[1] - Xp[0], Xp[2] - Xp[0] }), { 2, 2 }).transpose();
 	return DX;
 }
-Matrix stark::tet_jacobian(const std::vector<Vector>& x)
+Matrix tet_jacobian(const std::vector<Vector>& x)
 {
 	return Matrix(collect_scalars({ x[1] - x[0], x[2] - x[0] , x[3] - x[0] }), { 3, 3 }).transpose();
 }
-std::array<Scalar, 2> stark::eigenvalues_sym_2x2(const Matrix& A)
+std::array<Scalar, 2> eigenvalues_sym_2x2(const Matrix& A)
 {
 	// https://hal.science/hal-01501221/document
 	const Scalar& a = A(0, 0);
@@ -33,7 +37,7 @@ std::array<Scalar, 2> stark::eigenvalues_sym_2x2(const Matrix& A)
 	const Scalar delta = sqrt(4.0 * c.powN(2) + (a - b).powN(2));
 	return { 0.5 * (a + b + delta), 0.5 * (a + b - delta) };
 }
-std::array<Scalar, 3> stark::eigenvalues_sym_3x3(const Matrix& A)
+std::array<Scalar, 3> eigenvalues_sym_3x3(const Matrix& A)
 {
 	// https://hal.science/hal-01501221/document
 	const Scalar& a = A(0, 0);
@@ -56,7 +60,8 @@ std::array<Scalar, 3> stark::eigenvalues_sym_3x3(const Matrix& A)
 		1.0 / 3.0 * (a + b + c + 2.0 * sqrt(x1) * cos((phi + M_PI) / 3.0))
 	};
 }
-Scalar stark::soft_activation(const Scalar& x, const Scalar& eps)
+Scalar soft_activation(const Scalar& x, const Scalar& eps)
 {
 	return 0.5 * (x + sqrt(x*x + eps*eps));
 }
+} // namespace stark

@@ -23,7 +23,7 @@ namespace stark
 		std::vector<std::string> labels;
 
 		/* Methods */
-		PointDynamics(core::Stark& stark);
+		PointDynamics(Stark& stark);
 		PointSetHandler add(const std::vector<Eigen::Vector3d>& x, const std::string& label = "");
 		int size() const;
 		int get_set_size(int idx_in_ps) const;
@@ -40,8 +40,8 @@ namespace stark
 		std::array<Eigen::Vector3d, N> get_X(const std::array<int, N>& global_indices) const;
 
 	private:
-		void _before_time_step(core::Stark& stark);
-		void _on_time_step_accepted(core::Stark& stark);
+		void _before_time_step(Stark& stark);
+		void _on_time_step_accepted(Stark& stark);
 	};
 	using spPointDynamics = std::shared_ptr<PointDynamics>;
 

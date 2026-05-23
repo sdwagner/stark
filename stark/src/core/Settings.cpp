@@ -9,7 +9,6 @@
 #include <fmt/format.h>
 
 using namespace stark;
-using namespace stark::core;
 
 std::string time_stamp()
 {

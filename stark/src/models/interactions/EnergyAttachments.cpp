@@ -5,9 +5,10 @@
 #include "../rigidbodies/rigidbody_transformations.h"
 #include <tmd/TriangleMeshDistance.h>
 
+using namespace stark;
 using namespace symx;
 
-stark::EnergyAttachments::EnergyAttachments(core::Stark& stark, const spPointDynamics dyn, const spRigidBodyDynamics rb)
+EnergyAttachments::EnergyAttachments(Stark& stark, const spPointDynamics dyn, const spRigidBodyDynamics rb)
 	: dyn(dyn), rb(rb)
 {
 	// Callbacks
@@ -135,7 +136,7 @@ stark::EnergyAttachments::EnergyAttachments(core::Stark& stark, const spPointDyn
 	);
 }
 
-stark::EnergyAttachments::Handler stark::EnergyAttachments::add(const PointSetHandler& set_0, const PointSetHandler& set_1, const std::vector<int>& points_0, const std::vector<int>& points_1, const Params& params)
+EnergyAttachments::Handler EnergyAttachments::add(const PointSetHandler& set_0, const PointSetHandler& set_1, const std::vector<int>& points_0, const std::vector<int>& points_1, const Params& params)
 {
 	set_0.exit_if_not_valid("EnergyAttachments::add");
 	set_1.exit_if_not_valid("EnergyAttachments::add");
@@ -156,7 +157,7 @@ stark::EnergyAttachments::Handler stark::EnergyAttachments::add(const PointSetHa
 	this->handlers_map.push_back({ AttachmentType::Deformable_Deformable_Point_Point, group });
 	return Handler(this, handler_idx);
 }
-stark::EnergyAttachments::Handler stark::EnergyAttachments::add(const PointSetHandler& set_0, const PointSetHandler& set_1, const std::vector<int>& points, const std::vector<std::array<int, 2>>& edges, const std::vector<std::array<double, 2>>& bary, const Params& params)
+EnergyAttachments::Handler EnergyAttachments::add(const PointSetHandler& set_0, const PointSetHandler& set_1, const std::vector<int>& points, const std::vector<std::array<int, 2>>& edges, const std::vector<std::array<double, 2>>& bary, const Params& params)
 {
 	set_0.exit_if_not_valid("EnergyAttachments::add");
 	set_1.exit_if_not_valid("EnergyAttachments::add");
@@ -179,7 +180,7 @@ stark::EnergyAttachments::Handler stark::EnergyAttachments::add(const PointSetHa
 	this->handlers_map.push_back({ AttachmentType::Deformable_Deformable_Point_Edge, group });
 	return Handler(this, handler_idx);
 }
-stark::EnergyAttachments::Handler stark::EnergyAttachments::add(const PointSetHandler& set_0, const PointSetHandler& set_1, const std::vector<int>& points, const std::vector<std::array<int, 3>>& triangles, const std::vector<std::array<double, 3>>& bary, const Params& params)
+EnergyAttachments::Handler EnergyAttachments::add(const PointSetHandler& set_0, const PointSetHandler& set_1, const std::vector<int>& points, const std::vector<std::array<int, 3>>& triangles, const std::vector<std::array<double, 3>>& bary, const Params& params)
 {
 	set_0.exit_if_not_valid("EnergyAttachments::add");
 	set_1.exit_if_not_valid("EnergyAttachments::add");
@@ -202,7 +203,7 @@ stark::EnergyAttachments::Handler stark::EnergyAttachments::add(const PointSetHa
 	this->handlers_map.push_back({ AttachmentType::Deformable_Deformable_Point_Triangle, group });
 	return Handler(this, handler_idx);
 }
-stark::EnergyAttachments::Handler stark::EnergyAttachments::add(const PointSetHandler& set_0, const PointSetHandler& set_1, const std::vector<std::array<int, 2>>& edges_0, const std::vector<std::array<int, 2>>& edges_1, const std::vector<std::array<double, 2>>& bary_0, const std::vector<std::array<double, 2>>& bary_1, const Params& params)
+EnergyAttachments::Handler EnergyAttachments::add(const PointSetHandler& set_0, const PointSetHandler& set_1, const std::vector<std::array<int, 2>>& edges_0, const std::vector<std::array<int, 2>>& edges_1, const std::vector<std::array<double, 2>>& bary_0, const std::vector<std::array<double, 2>>& bary_1, const Params& params)
 {
 	set_0.exit_if_not_valid("EnergyAttachments::add");
 	set_1.exit_if_not_valid("EnergyAttachments::add");
@@ -226,7 +227,7 @@ stark::EnergyAttachments::Handler stark::EnergyAttachments::add(const PointSetHa
 	this->handlers_map.push_back({ AttachmentType::Deformable_Deformable_Edge_Edge, group });
 	return Handler(this, handler_idx);
 }
-stark::EnergyAttachments::MultiHandler stark::EnergyAttachments::add_by_distance(const PointSetHandler& set_0, const PointSetHandler& set_1, const std::vector<int>& points, const std::vector<std::array<int, 3>>& triangles, const double distance, const Params& params)
+EnergyAttachments::MultiHandler EnergyAttachments::add_by_distance(const PointSetHandler& set_0, const PointSetHandler& set_1, const std::vector<int>& points, const std::vector<std::array<int, 3>>& triangles, const double distance, const Params& params)
 {
 	set_0.exit_if_not_valid("EnergyAttachments::add");
 	set_1.exit_if_not_valid("EnergyAttachments::add");
@@ -300,7 +301,7 @@ stark::EnergyAttachments::MultiHandler stark::EnergyAttachments::add_by_distance
 		this->add(set_0, set_1, p_t_points, p_t_triangles, p_t_bary, params)
 	});
 }
-stark::EnergyAttachments::Handler stark::EnergyAttachments::add(const RigidBodyHandler& rb, const PointSetHandler& set, const std::vector<Eigen::Vector3d>& rb_points_loc, const std::vector<int>& set_points, const Params& params)
+EnergyAttachments::Handler EnergyAttachments::add(const RigidBodyHandler& rb, const PointSetHandler& set, const std::vector<Eigen::Vector3d>& rb_points_loc, const std::vector<int>& set_points, const Params& params)
 {
 	rb.exit_if_not_valid("EnergyAttachments::add");
 	set.exit_if_not_valid("EnergyAttachments::add");
@@ -319,7 +320,7 @@ stark::EnergyAttachments::Handler stark::EnergyAttachments::add(const RigidBodyH
 	this->handlers_map.push_back({ AttachmentType::Rigid_Deformable, group_rb_d });
 	return Handler(this, handler_idx);
 }
-stark::EnergyAttachments::Handler stark::EnergyAttachments::add(const RigidBodyHandler& rb, const PointSetHandler& set, const std::vector<int>& points, const Params& params)
+EnergyAttachments::Handler EnergyAttachments::add(const RigidBodyHandler& rb, const PointSetHandler& set, const std::vector<int>& points, const Params& params)
 {
 	rb.exit_if_not_valid("EnergyAttachments::add");
 	set.exit_if_not_valid("EnergyAttachments::add");
@@ -331,7 +332,7 @@ stark::EnergyAttachments::Handler stark::EnergyAttachments::add(const RigidBodyH
 	}
 	return this->add(rb, set, rb_points_loc, points, params);
 }
-stark::EnergyAttachments::Handler stark::EnergyAttachments::add_by_distance(const RigidBodyHandler& rb, const PointSetHandler& set, const std::vector<Eigen::Vector3d>& loc_vertices, const std::vector<std::array<int, 3>>& triangles, const std::vector<int>& set_points, const double distance, const Params& params)
+EnergyAttachments::Handler EnergyAttachments::add_by_distance(const RigidBodyHandler& rb, const PointSetHandler& set, const std::vector<Eigen::Vector3d>& loc_vertices, const std::vector<std::array<int, 3>>& triangles, const std::vector<int>& set_points, const double distance, const Params& params)
 {
 	rb.exit_if_not_valid("EnergyAttachments::add");
 	set.exit_if_not_valid("EnergyAttachments::add");
@@ -358,7 +359,7 @@ stark::EnergyAttachments::Handler stark::EnergyAttachments::add_by_distance(cons
 	// Add attachments
 	return this->add(rb, set, rb_points_loc, rb_d_set_points, params);
 }
-stark::EnergyAttachments::Params stark::EnergyAttachments::get_params(const Handler& handler) const
+EnergyAttachments::Params EnergyAttachments::get_params(const Handler& handler) const
 {
 	handler.exit_if_not_valid("EnergyAttachments::get_params");
 
@@ -381,7 +382,7 @@ stark::EnergyAttachments::Params stark::EnergyAttachments::get_params(const Hand
 		exit(-1);
 	}
 }
-void stark::EnergyAttachments::set_params(const Handler& handler, const Params& params)
+void EnergyAttachments::set_params(const Handler& handler, const Params& params)
 {
 	handler.exit_if_not_valid("EnergyAttachments::set_params");
 
@@ -415,7 +416,7 @@ void stark::EnergyAttachments::set_params(const Handler& handler, const Params& 
 	}
 }
 
-bool stark::EnergyAttachments::_is_converged_state_valid(core::Stark& stark)
+bool EnergyAttachments::_is_converged_state_valid(Stark& stark)
 {
 	const double dt = stark.dt;
 	bool is_valid = true;

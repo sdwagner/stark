@@ -36,7 +36,7 @@ namespace stark
 
 	public:
 		/* Methods */
-		EnergyTetStrain(core::Stark& stark, spPointDynamics dyn);
+		EnergyTetStrain(Stark& stark, spPointDynamics dyn);
 		Handler add(const PointSetHandler& set, const std::vector<std::array<int, 4>>& tets, const Params& params);
 		Params get_params(const Handler& handler) const;
 		void set_params(const Handler& handler, const Params& params);

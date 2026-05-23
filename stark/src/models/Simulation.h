@@ -14,16 +14,16 @@ namespace stark
 	{
 	public:
 		/* Methods */
-		Simulation(const core::Settings& settings);
+		Simulation(const Settings& settings);
 		double get_time() const;
 		double get_time_step_size() const;
 		int get_frame() const;
 		Eigen::Vector3d get_gravity() const;
 		void set_gravity(const Eigen::Vector3d& gravity);
 		symx::Logger& get_logger();
-		const core::Settings& get_settings() const;
+		const Settings& get_settings() const;
 		EventDrivenScript& get_script();
-		core::Stark& get_stark();
+		spCallbacks& get_callbacks();
 
 		void add_time_event(double t0, double t1, std::function<void(double)> action);
 		void add_time_event(double t0, double t1, std::function<void(double, EventInfo&)> action);
@@ -32,12 +32,10 @@ namespace stark
 		void run_one_time_step();
 
 		/* Fields */
+		Stark stark;
 		std::shared_ptr<Deformables> deformables;
 		std::shared_ptr<RigidBodies> rigidbodies;
 		std::shared_ptr<Interactions> interactions;
 		std::shared_ptr<Presets> presets;
-
-	private:
-		core::Stark stark;
 	};
 }

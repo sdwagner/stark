@@ -4,7 +4,7 @@
 
 #include <symx>
 
-namespace stark::core
+namespace stark
 {
 	/*
 	* Stark allows the user to inject functionality in the main simulation loop (including the minimizer) by a system of callbacks.

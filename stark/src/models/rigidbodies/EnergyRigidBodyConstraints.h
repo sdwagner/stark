@@ -40,7 +40,7 @@ namespace stark
 	class EnergyRigidBodyConstraints
 	{
 	public:
-        EnergyRigidBodyConstraints(core::Stark& stark, const spRigidBodyDynamics rb);
+        EnergyRigidBodyConstraints(Stark& stark, const spRigidBodyDynamics rb);
 
         /* Fields */
         const spRigidBodyDynamics rb;
@@ -63,10 +63,10 @@ namespace stark
 
 	private:
         /* Methods */
-		bool _adjust_constraints_stiffness_and_log(core::Stark& stark, double cap, double multiplier, bool are_positions_set);
+		bool _adjust_constraints_stiffness_and_log(Stark& stark, double cap, double multiplier, bool are_positions_set);
 
 		// SymX callbacks
-		bool _is_converged_state_valid(core::Stark& stark);
-		void _on_time_step_accepted(core::Stark& stark);
+		bool _is_converged_state_valid(Stark& stark);
+		void _on_time_step_accepted(Stark& stark);
 	};
 }

@@ -10,7 +10,7 @@ namespace stark
 	{
 	public:
 		/* Methods */
-		Interactions(core::Stark& stark, spPointDynamics dyn, spRigidBodyDynamics rb);
+		Interactions(Stark& stark, spPointDynamics dyn, spRigidBodyDynamics rb);
 
 		/* Fields */
 		std::shared_ptr<EnergyAttachments> attachments;

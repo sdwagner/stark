@@ -2,9 +2,10 @@
 
 #include "rigidbody_transformations.h"
 
+using namespace stark;
 using namespace symx;
 
-stark::EnergyRigidBodyInertia::EnergyRigidBodyInertia(core::Stark& stark, spRigidBodyDynamics rb)
+EnergyRigidBodyInertia::EnergyRigidBodyInertia(Stark& stark, spRigidBodyDynamics rb)
 	: rb(rb)
 {
 	stark.callbacks->add_before_time_step([&]() { this->_before_time_step(stark); });
@@ -67,7 +68,7 @@ stark::EnergyRigidBodyInertia::EnergyRigidBodyInertia(core::Stark& stark, spRigi
 	);
 }
 
-void stark::EnergyRigidBodyInertia::add(const int rb_idx, const double mass, const Eigen::Matrix3d& inertia_loc)
+void EnergyRigidBodyInertia::add(const int rb_idx, const double mass, const Eigen::Matrix3d& inertia_loc)
 {
 	if (rb_idx != (int)this->mass.size()) {
 		std::cout << "Stark error: EnergyRigidBodyInertia::add() found non-consecutive rigid body added." << std::endl;
@@ -82,7 +83,7 @@ void stark::EnergyRigidBodyInertia::add(const int rb_idx, const double mass, con
 	this->is_quasistatic.push_back(0.0);
 }
 
-void stark::EnergyRigidBodyInertia::_before_time_step(stark::core::Stark& stark)
+void EnergyRigidBodyInertia::_before_time_step(Stark& stark)
 {
 	const int n = this->rb->get_n_bodies();
 	this->J0_glob.resize(n);

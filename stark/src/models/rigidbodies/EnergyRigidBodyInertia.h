@@ -18,11 +18,11 @@ namespace stark
         std::vector<double> is_quasistatic;
 
         /* Methods */
-        EnergyRigidBodyInertia(core::Stark& stark, spRigidBodyDynamics rb);
+        EnergyRigidBodyInertia(Stark& stark, spRigidBodyDynamics rb);
         void add(const int rb_idx, const double mass, const Eigen::Matrix3d& inertia_loc);
 
     private:
         // Stark callbacks
-        void _before_time_step(core::Stark& stark);
+        void _before_time_step(Stark& stark);
 	};
 }

@@ -10,6 +10,9 @@
 
 #include "unordered_array_set_and_map.h"
 
+
+namespace stark
+{
 // Tools
 void push_back_if_not_present(std::vector<int>& v, const int value)
 {
@@ -25,18 +28,18 @@ bool is_outward_facing(const Eigen::Vector3d& v0, const Eigen::Vector3d& v1, con
 }
 // ========================================================================================================
 
-double stark::deg2rad(const double deg)
+double deg2rad(const double deg)
 {
 	return 2.0 * M_PI * (deg / 360.0);
 }
-double stark::rad2deg(const double rad)
+double rad2deg(const double rad)
 {
 	return rad * 180.0 / M_PI;
 }
 
-std::vector<stark::Mesh<3>> stark::load_obj(const std::string& path)
+std::vector<Mesh<3>> load_obj(const std::string& path)
 {
-    std::vector<stark::Mesh<3>> tri_meshes;
+    std::vector<Mesh<3>> tri_meshes;
 
     // Initialise tinyobjloader objects and read the file
     tinyobj::attrib_t attrib;
@@ -119,7 +122,7 @@ std::vector<stark::Mesh<3>> stark::load_obj(const std::string& path)
 
 	return tri_meshes;
 }
-void stark::write_VTK(const std::string& path, const std::vector<Eigen::Vector3d>& vertices, const std::vector<std::array<int, 4>>& tets)
+void write_VTK(const std::string& path, const std::vector<Eigen::Vector3d>& vertices, const std::vector<std::array<int, 4>>& tets)
 {
 	vtkio::VTKFile vtk_file;
 
@@ -133,7 +136,7 @@ void stark::write_VTK(const std::string& path, const std::vector<Eigen::Vector3d
 		vtk_file.write(path);
 	}
 }
-void stark::write_VTK(const std::string& path, const std::vector<Eigen::Vector3d>& vertices, const std::vector<std::array<int, 3>>& triangles, const bool generate_normals)
+void write_VTK(const std::string& path, const std::vector<Eigen::Vector3d>& vertices, const std::vector<std::array<int, 3>>& triangles, const bool generate_normals)
 {
 	vtkio::VTKFile vtk_file;
 
@@ -153,7 +156,7 @@ void stark::write_VTK(const std::string& path, const std::vector<Eigen::Vector3d
 		vtk_file.write(path);
 	}
 }
-void stark::write_VTK(const std::string& path, const std::vector<Eigen::Vector3d>& vertices, const std::vector<std::array<int, 2>>& edges)
+void write_VTK(const std::string& path, const std::vector<Eigen::Vector3d>& vertices, const std::vector<std::array<int, 2>>& edges)
 {
 	vtkio::VTKFile vtk_file;
 
@@ -167,7 +170,7 @@ void stark::write_VTK(const std::string& path, const std::vector<Eigen::Vector3d
 		vtk_file.write(path);
 	}
 }
-void stark::write_VTK(const std::string& path, const std::vector<Eigen::Vector3d>& vertices, const std::vector<std::array<int, 1>>& points)
+void write_VTK(const std::string& path, const std::vector<Eigen::Vector3d>& vertices, const std::vector<std::array<int, 1>>& points)
 {
 	vtkio::VTKFile vtk_file;
 
@@ -182,24 +185,24 @@ void stark::write_VTK(const std::string& path, const std::vector<Eigen::Vector3d
 	}
 }
 
-Eigen::Vector3d stark::triangle_normal(const Eigen::Vector3d& p0, const Eigen::Vector3d& p1, const Eigen::Vector3d& p2)
+Eigen::Vector3d triangle_normal(const Eigen::Vector3d& p0, const Eigen::Vector3d& p1, const Eigen::Vector3d& p2)
 {
 	return (p0 - p2).cross(p1 - p2).normalized();
 }
-double stark::triangle_area(const Eigen::Vector3d& p0, const Eigen::Vector3d& p1, const Eigen::Vector3d& p2)
+double triangle_area(const Eigen::Vector3d& p0, const Eigen::Vector3d& p1, const Eigen::Vector3d& p2)
 {
 	return 0.5 * (p0 - p2).cross(p1 - p2).norm();
 }
-double stark::unsigned_tetra_volume(const Eigen::Vector3d& p0, const Eigen::Vector3d& p1, const Eigen::Vector3d& p2, const Eigen::Vector3d& p3)
+double unsigned_tetra_volume(const Eigen::Vector3d& p0, const Eigen::Vector3d& p1, const Eigen::Vector3d& p2, const Eigen::Vector3d& p3)
 {
 	return std::abs(signed_tetra_volume(p0, p1, p2, p3));
 }
-double stark::signed_tetra_volume(const Eigen::Vector3d& p0, const Eigen::Vector3d& p1, const Eigen::Vector3d& p2, const Eigen::Vector3d& p3)
+double signed_tetra_volume(const Eigen::Vector3d& p0, const Eigen::Vector3d& p1, const Eigen::Vector3d& p2, const Eigen::Vector3d& p3)
 {
 	return (1.0 / 6.0) * ((p1 - p0).cross(p2 - p0)).dot(p3 - p0);
 }
 
-void stark::find_node_node_map_simplex(std::vector<std::vector<int>>& output, const int32_t* connectivity, const int32_t n_simplices, const int32_t n_nodes_per_simplex, const int32_t n_nodes)
+void find_node_node_map_simplex(std::vector<std::vector<int>>& output, const int32_t* connectivity, const int32_t n_simplices, const int32_t n_nodes_per_simplex, const int32_t n_nodes)
 {
 	output.resize(n_nodes);
 	for (int simplex_i = 0; simplex_i < n_simplices; simplex_i++) {
@@ -214,7 +217,7 @@ void stark::find_node_node_map_simplex(std::vector<std::vector<int>>& output, co
 		}
 	}
 }
-void stark::find_internal_angles(std::vector<std::array<int, 4>>& internal_angles, const std::vector<std::array<int, 3>>& triangles, const int n_nodes)
+void find_internal_angles(std::vector<std::array<int, 4>>& internal_angles, const std::vector<std::array<int, 3>>& triangles, const int n_nodes)
 {
 	/*
 		For each edge in the triangle mesh, find the 2 nodes that are common neighbors of both edge end-points.
@@ -250,7 +253,7 @@ void stark::find_internal_angles(std::vector<std::array<int, 4>>& internal_angle
 		}
 	}
 }
-void stark::find_perimeter_edges(std::vector<std::array<int, 2>>& out_perimeter_edges, std::vector<int>& out_edge_to_triangle_node_map, const std::vector<std::array<int, 3>>& triangles, const int n_nodes)
+void find_perimeter_edges(std::vector<std::array<int, 2>>& out_perimeter_edges, std::vector<int>& out_edge_to_triangle_node_map, const std::vector<std::array<int, 3>>& triangles, const int n_nodes)
 {
 	unordered_array_map<int, 2, int> edge_count;
 	for (const auto& triangle : triangles) {
@@ -268,14 +271,14 @@ void stark::find_perimeter_edges(std::vector<std::array<int, 2>>& out_perimeter_
 
 	reduce_connectivity(out_perimeter_edges, out_edge_to_triangle_node_map, perimeter_edges, n_nodes);
 }
-std::tuple<std::vector<std::array<int, 2>>, std::vector<int>> stark::find_perimeter_edges(const std::vector<std::array<int, 3>>& triangles, const int n_nodes)
+std::tuple<std::vector<std::array<int, 2>>, std::vector<int>> find_perimeter_edges(const std::vector<std::array<int, 3>>& triangles, const int n_nodes)
 {
 	std::vector<std::array<int, 2>> edges;
 	std::vector<int> edge_to_triangle_node_map;
 	find_perimeter_edges(edges, edge_to_triangle_node_map, triangles, n_nodes);
 	return std::make_tuple(edges, edge_to_triangle_node_map);
 }
-void stark::find_surface(std::vector<std::array<int, 3>>& out_triangles, std::vector<int>& out_triangle_to_tet_node_map, const std::vector<Eigen::Vector3d>& vertices, const std::vector<std::array<int, 4>>& tets)
+void find_surface(std::vector<std::array<int, 3>>& out_triangles, std::vector<int>& out_triangle_to_tet_node_map, const std::vector<Eigen::Vector3d>& vertices, const std::vector<std::array<int, 4>>& tets)
 {
 	out_triangles.clear();
 	out_triangle_to_tet_node_map.clear();
@@ -325,14 +328,14 @@ void stark::find_surface(std::vector<std::array<int, 3>>& out_triangles, std::ve
 	// Reduce connectivity to a full, smaller mesh
 	reduce_connectivity(out_triangles, out_triangle_to_tet_node_map, unique_triangles, (int)vertices.size());
 }
-std::tuple<std::vector<std::array<int, 3>>, std::vector<int>> stark::find_surface(const std::vector<Eigen::Vector3d>& vertices, const std::vector<std::array<int, 4>>& tets)
+std::tuple<std::vector<std::array<int, 3>>, std::vector<int>> find_surface(const std::vector<Eigen::Vector3d>& vertices, const std::vector<std::array<int, 4>>& tets)
 {
 	std::vector<std::array<int, 3>> out_triangles;
 	std::vector<int> out_triangle_to_tet_node_map;
 	find_surface(out_triangles, out_triangle_to_tet_node_map, vertices, tets);
 	return { out_triangles, out_triangle_to_tet_node_map };
 }
-void stark::clean_triangle_mesh(std::vector<Eigen::Vector3d>& out_vertices, std::vector<std::array<int, 3>>& out_triangles, const std::vector<Eigen::Vector3d>& vertices, const std::vector<std::array<int, 3>>& triangles, const double merge_by_distance)
+void clean_triangle_mesh(std::vector<Eigen::Vector3d>& out_vertices, std::vector<std::array<int, 3>>& out_triangles, const std::vector<Eigen::Vector3d>& vertices, const std::vector<std::array<int, 3>>& triangles, const double merge_by_distance)
 {
 	// Quantize all vertices to a grid with cell size equal to merge_by_distance
 	if (merge_by_distance > 0.0) {
@@ -397,14 +400,14 @@ void stark::clean_triangle_mesh(std::vector<Eigen::Vector3d>& out_vertices, std:
 		out_triangles.push_back(prev_triangles[unique_tri.second]);
 	}
 }
-std::tuple<std::vector<Eigen::Vector3d>, std::vector<std::array<int, 3>>> stark::clean_triangle_mesh(const std::vector<Eigen::Vector3d>& vertices, const std::vector<std::array<int, 3>>& triangles, const double merge_by_distance)
+std::tuple<std::vector<Eigen::Vector3d>, std::vector<std::array<int, 3>>> clean_triangle_mesh(const std::vector<Eigen::Vector3d>& vertices, const std::vector<std::array<int, 3>>& triangles, const double merge_by_distance)
 {
 	std::vector<Eigen::Vector3d> out_vertices;
 	std::vector<std::array<int, 3>> out_triangles;
 	clean_triangle_mesh(out_vertices, out_triangles, vertices, triangles, merge_by_distance);
 	return { out_vertices, out_triangles };
 }
-void stark::find_sharp_edges(std::vector<std::array<int, 2>>& out_edges, std::vector<int>& out_old_to_new_map, const std::vector<Eigen::Vector3d>& vertices, const std::vector<std::array<int, 3>>& triangles, double angle_deg_threshold)
+void find_sharp_edges(std::vector<std::array<int, 2>>& out_edges, std::vector<int>& out_old_to_new_map, const std::vector<Eigen::Vector3d>& vertices, const std::vector<std::array<int, 3>>& triangles, double angle_deg_threshold)
 {
 	std::vector<std::array<int, 2>> edges;
 	std::vector<std::array<int, 4>> internal_angles;
@@ -427,7 +430,7 @@ void stark::find_sharp_edges(std::vector<std::array<int, 2>>& out_edges, std::ve
 
 	reduce_connectivity(out_edges, out_old_to_new_map, edges, (int)vertices.size());
 }
-std::tuple<std::vector<std::array<int, 2>>, std::vector<int>> stark::find_sharp_edges(const std::vector<Eigen::Vector3d>& vertices, const std::vector<std::array<int, 3>>& triangles, double angle_deg_threshold)
+std::tuple<std::vector<std::array<int, 2>>, std::vector<int>> find_sharp_edges(const std::vector<Eigen::Vector3d>& vertices, const std::vector<std::array<int, 3>>& triangles, double angle_deg_threshold)
 {
 	std::vector<std::array<int, 2>> out_edges;
 	std::vector<int> out_old_to_new_map;
@@ -436,7 +439,7 @@ std::tuple<std::vector<std::array<int, 2>>, std::vector<int>> stark::find_sharp_
 }
 
 
-double stark::total_volume(const std::vector<Eigen::Vector3d>& vertices, const std::vector<std::array<int, 4>>& tets)
+double total_volume(const std::vector<Eigen::Vector3d>& vertices, const std::vector<std::array<int, 4>>& tets)
 {
 	double volume = 0.0;
 	for (const std::array<int, 4>&tet : tets) {
@@ -444,7 +447,7 @@ double stark::total_volume(const std::vector<Eigen::Vector3d>& vertices, const s
 	}
 	return volume;
 }
-void stark::compute_node_normals(std::vector<Eigen::Vector3d>& output, const std::vector<Eigen::Vector3d>& vertices, const std::vector<std::array<int, 3>>& triangles)
+void compute_node_normals(std::vector<Eigen::Vector3d>& output, const std::vector<Eigen::Vector3d>& vertices, const std::vector<std::array<int, 3>>& triangles)
 {
 	output.resize(vertices.size(), Eigen::Vector3d::Zero());
 	for (const std::array<int, 3> &triangle : triangles) {
@@ -460,7 +463,7 @@ void stark::compute_node_normals(std::vector<Eigen::Vector3d>& output, const std
 }
 
 
-void stark::center(std::vector<Eigen::Vector3d>& points)
+void center(std::vector<Eigen::Vector3d>& points)
 {
 	if (points.size() == 0) {
 		return;
@@ -475,7 +478,7 @@ void stark::center(std::vector<Eigen::Vector3d>& points)
 	}
 }
 
-void stark::normalize(std::vector<Eigen::Vector3d>& points, const double length)
+void normalize(std::vector<Eigen::Vector3d>& points, const double length)
 {
 	if (points.size() == 0) {
 		return;
@@ -496,36 +499,36 @@ void stark::normalize(std::vector<Eigen::Vector3d>& points, const double length)
 	}
 }
 
-void stark::move(std::vector<Eigen::Vector3d>& points, const Eigen::Vector3d& translation)
+void move(std::vector<Eigen::Vector3d>& points, const Eigen::Vector3d& translation)
 {
 	for (Eigen::Vector3d& point : points) {
 		point += translation;
 	}
 }
-void stark::rotate_deg(std::vector<Eigen::Vector3d>& points, const double angle, const Eigen::Vector3d& axis)
+void rotate_deg(std::vector<Eigen::Vector3d>& points, const double angle, const Eigen::Vector3d& axis)
 {
 	Eigen::Matrix3d R = Eigen::AngleAxis<double>(deg2rad(angle), axis.normalized()).toRotationMatrix();
 	for (Eigen::Vector3d& point : points) {
 		point = R * point;
 	}
 }
-void stark::rotate_deg(std::vector<Eigen::Vector3d>& points, const double angle, const Eigen::Vector3d& axis, const Eigen::Vector3d& pivot)
+void rotate_deg(std::vector<Eigen::Vector3d>& points, const double angle, const Eigen::Vector3d& axis, const Eigen::Vector3d& pivot)
 {
 	move(points, -pivot);
 	rotate_deg(points, angle, axis);
 	move(points, pivot);
 }
-void stark::scale(std::vector<Eigen::Vector3d>& points, const Eigen::Vector3d& scale)
+void scale(std::vector<Eigen::Vector3d>& points, const Eigen::Vector3d& scale)
 {
 	for (Eigen::Vector3d& point : points) {
 		point = scale.cwiseProduct(point);
 	}
 }
-void stark::scale(std::vector<Eigen::Vector3d>& points, const double s)
+void scale(std::vector<Eigen::Vector3d>& points, const double s)
 {
 	scale(points, { s, s, s });
 }
-void stark::mirror(std::vector<Eigen::Vector3d>& points, const int dim, const double pivot)
+void mirror(std::vector<Eigen::Vector3d>& points, const int dim, const double pivot)
 {
 	for (Eigen::Vector3d& point : points) {
 		const double dist = point[dim] - pivot;
@@ -533,10 +536,11 @@ void stark::mirror(std::vector<Eigen::Vector3d>& points, const int dim, const do
 	}
 }
 
-Eigen::Vector3d stark::rotate_deg(const Eigen::Vector3d& point, const Eigen::Matrix3d& R, const Eigen::Vector3d& pivot)
+Eigen::Vector3d rotate_deg(const Eigen::Vector3d& point, const Eigen::Matrix3d& R, const Eigen::Vector3d& pivot)
 {
 	const Eigen::Vector3d p_shifted = point - pivot;
 	const Eigen::Vector3d p_shifted_rotated = R*p_shifted;
 	const Eigen::Vector3d p_rotated = p_shifted_rotated + pivot;
 	return p_rotated;
 }
+} // namespace stark

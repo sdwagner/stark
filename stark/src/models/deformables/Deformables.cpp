@@ -2,7 +2,9 @@
 
 #include "../../utils/include.h"
 
-stark::Deformables::Deformables(core::Stark& stark, spPointDynamics dyn)
+using namespace stark;
+
+Deformables::Deformables(Stark& stark, spPointDynamics dyn)
 	: point_sets(dyn)
 {
 	this->output = std::make_shared<DeformablesMeshOutput>(stark, dyn);

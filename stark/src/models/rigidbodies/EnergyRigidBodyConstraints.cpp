@@ -4,9 +4,10 @@
 
 #include "rigidbody_transformations.h"
 
+using namespace stark;
 using namespace symx;
 
-stark::EnergyRigidBodyConstraints::EnergyRigidBodyConstraints(stark::core::Stark& stark, spRigidBodyDynamics rb)
+EnergyRigidBodyConstraints::EnergyRigidBodyConstraints(Stark& stark, spRigidBodyDynamics rb)
 	: rb(rb)
 {
 	// Callbacks
@@ -239,7 +240,7 @@ stark::EnergyRigidBodyConstraints::EnergyRigidBodyConstraints(stark::core::Stark
 	);
 }
 
-bool stark::EnergyRigidBodyConstraints::_is_converged_state_valid(core::Stark& stark)
+bool EnergyRigidBodyConstraints::_is_converged_state_valid(Stark& stark)
 {
 	/*
 		Hardens every constraints that has gone beyond the input tolerance.
@@ -252,7 +253,7 @@ bool stark::EnergyRigidBodyConstraints::_is_converged_state_valid(core::Stark& s
 	return valid;
 }
 
-void stark::EnergyRigidBodyConstraints::_on_time_step_accepted(core::Stark& stark)
+void EnergyRigidBodyConstraints::_on_time_step_accepted(Stark& stark)
 {
 	/*
 	*	Logs the state of the constraints.
@@ -265,7 +266,7 @@ void stark::EnergyRigidBodyConstraints::_on_time_step_accepted(core::Stark& star
 	this->_adjust_constraints_stiffness_and_log(stark, this->soft_constraint_capacity_hardening_point, this->stiffness_soft_multiplier, /* are_positions_set = */ true);
 }
 
-bool stark::EnergyRigidBodyConstraints::_adjust_constraints_stiffness_and_log(core::Stark& stark, double cap, double multiplier, bool are_positions_set)
+bool EnergyRigidBodyConstraints::_adjust_constraints_stiffness_and_log(Stark& stark, double cap, double multiplier, bool are_positions_set)
 {
 	/*
 		This function evaluates all the constraints and serves multiple purposes:

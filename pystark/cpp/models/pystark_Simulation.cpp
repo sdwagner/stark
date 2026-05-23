@@ -3,7 +3,7 @@
 void pystark_Simulation(nb::module_& m)
 {
     nb::class_<Simulation>(m, "Simulation")
-        .def(nb::init<const core::Settings&>())
+        .def(nb::init<const Settings&>())
         .def("get_time", &Simulation::get_time)
         .def("get_time_step_size", &Simulation::get_time_step_size)
         .def("get_frame", &Simulation::get_frame)

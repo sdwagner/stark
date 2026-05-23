@@ -3,9 +3,10 @@
 #include "../../time_integration.h"
 #include "../../../utils/include.h"
 
+using namespace stark;
 using namespace symx;
 
-stark::EnergyPrescribedPositions::EnergyPrescribedPositions(core::Stark& stark, spPointDynamics dyn)
+EnergyPrescribedPositions::EnergyPrescribedPositions(Stark& stark, spPointDynamics dyn)
 	: dyn(dyn)
 {
 	// Callbacks
@@ -31,7 +32,7 @@ stark::EnergyPrescribedPositions::EnergyPrescribedPositions(core::Stark& stark, 
 		}
 	);
 }
-stark::EnergyPrescribedPositions::Handler stark::EnergyPrescribedPositions::add(const PointSetHandler& set, const std::vector<int>& points, const Params& params)
+EnergyPrescribedPositions::Handler EnergyPrescribedPositions::add(const PointSetHandler& set, const std::vector<int>& points, const Params& params)
 {
 	set.exit_if_not_valid("EnergyPrescribedPositions::add");
 	const int group = (int)this->stiffness.size();
@@ -50,7 +51,7 @@ stark::EnergyPrescribedPositions::Handler stark::EnergyPrescribedPositions::add(
 
 	return Handler(this, group);
 }
-stark::EnergyPrescribedPositions::Handler stark::EnergyPrescribedPositions::add_inside_aabb(const PointSetHandler& set, const Eigen::Vector3d& aabb_center, const Eigen::Vector3d& aabb_dim, const Params& params)
+EnergyPrescribedPositions::Handler EnergyPrescribedPositions::add_inside_aabb(const PointSetHandler& set, const Eigen::Vector3d& aabb_center, const Eigen::Vector3d& aabb_dim, const Params& params)
 {
 	set.exit_if_not_valid("EnergyPrescribedPositions::add_inside_aabb");
 	Eigen::AlignedBox3d aabb(aabb_center - 0.5*aabb_dim, aabb_center + 0.5*aabb_dim);
@@ -63,7 +64,7 @@ stark::EnergyPrescribedPositions::Handler stark::EnergyPrescribedPositions::add_
 	}
 	return this->add(set, points, params);
 }
-stark::EnergyPrescribedPositions::Handler stark::EnergyPrescribedPositions::add_outside_aabb(const PointSetHandler& set, const Eigen::Vector3d& aabb_center, const Eigen::Vector3d& aabb_dim, const Params& params)
+EnergyPrescribedPositions::Handler EnergyPrescribedPositions::add_outside_aabb(const PointSetHandler& set, const Eigen::Vector3d& aabb_center, const Eigen::Vector3d& aabb_dim, const Params& params)
 {
 	set.exit_if_not_valid("EnergyPrescribedPositions::add_outside_aabb");
 	Eigen::AlignedBox3d aabb(aabb_center - 0.5*aabb_dim, aabb_center + 0.5*aabb_dim);
@@ -76,7 +77,7 @@ stark::EnergyPrescribedPositions::Handler stark::EnergyPrescribedPositions::add_
 	}
 	return this->add(set, points, params);
 }
-stark::EnergyPrescribedPositions::Params stark::EnergyPrescribedPositions::get_params(const Handler& handler) const
+EnergyPrescribedPositions::Params EnergyPrescribedPositions::get_params(const Handler& handler) const
 {
 	handler.exit_if_not_valid("EnergyPrescribedPositions::get_params");
 
@@ -91,7 +92,7 @@ stark::EnergyPrescribedPositions::Params stark::EnergyPrescribedPositions::get_p
 	params.tolerance = this->tolerance[group];
 	return params;
 }
-void stark::EnergyPrescribedPositions::set_params(const Handler& handler, const Params& params)
+void EnergyPrescribedPositions::set_params(const Handler& handler, const Params& params)
 {
 	handler.exit_if_not_valid("EnergyPrescribedPositions::set_params");
 
@@ -104,7 +105,7 @@ void stark::EnergyPrescribedPositions::set_params(const Handler& handler, const 
 	this->stiffness[group] = params.stiffness;
 	this->tolerance[group] = params.tolerance;
 }
-void stark::EnergyPrescribedPositions::set_transformation(const Handler& handler, const Eigen::Vector3d& t, const Eigen::Matrix3d& R)
+void EnergyPrescribedPositions::set_transformation(const Handler& handler, const Eigen::Vector3d& t, const Eigen::Matrix3d& R)
 {
 	handler.exit_if_not_valid("EnergyPrescribedPositions::set_transformation");
 	const int group = handler.get_idx();
@@ -114,13 +115,13 @@ void stark::EnergyPrescribedPositions::set_transformation(const Handler& handler
 	}
 }
 
-void stark::EnergyPrescribedPositions::set_transformation(const Handler& handler, const Eigen::Vector3d& t, const double angle_deg, const Eigen::Vector3d& axis)
+void EnergyPrescribedPositions::set_transformation(const Handler& handler, const Eigen::Vector3d& t, const double angle_deg, const Eigen::Vector3d& axis)
 {
 	const Eigen::Matrix3d R = Eigen::AngleAxisd(deg2rad(angle_deg), axis.normalized()).toRotationMatrix();
 	this->set_transformation(handler, t, R);
 }
 
-void stark::EnergyPrescribedPositions::set_target_position(const Handler& handler, int prescribed_idx, const Eigen::Vector3d& t)
+void EnergyPrescribedPositions::set_target_position(const Handler& handler, int prescribed_idx, const Eigen::Vector3d& t)
 {
 	handler.exit_if_not_valid("EnergyPrescribedPositions::set_target_position");
 	const int group = handler.get_idx();
@@ -129,7 +130,7 @@ void stark::EnergyPrescribedPositions::set_target_position(const Handler& handle
 	this->target_positions[idx] = t;
 }
 
-bool stark::EnergyPrescribedPositions::_is_converged_state_valid(stark::core::Stark& stark)
+bool EnergyPrescribedPositions::_is_converged_state_valid(Stark& stark)
 {
 	const double dt = stark.dt;
 	bool is_valid = true;

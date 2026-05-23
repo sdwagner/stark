@@ -2,14 +2,16 @@
 
 #include "../time_integration.h"
 
-stark::PointDynamics::PointDynamics(stark::core::Stark& stark)
+using namespace stark;
+
+PointDynamics::PointDynamics(Stark& stark)
 {
 	stark.global_potential->add_dof(this->v1.data, "soft.v1");
 	stark.callbacks->add_before_time_step([&]() { this->_before_time_step(stark); });
 	stark.callbacks->add_on_time_step_accepted([&]() { this->_on_time_step_accepted(stark); });
 }
 
-stark::PointSetHandler stark::PointDynamics::add(const std::vector<Eigen::Vector3d>& x, const std::string& label)
+PointSetHandler PointDynamics::add(const std::vector<Eigen::Vector3d>& x, const std::string& label)
 {
 	std::vector<Eigen::Vector3d> zero(x.size(), Eigen::Vector3d::Zero());
 
@@ -25,43 +27,43 @@ stark::PointSetHandler stark::PointDynamics::add(const std::vector<Eigen::Vector
 	return PointSetHandler(this, glob_idx);
 }
 
-int stark::PointDynamics::size() const
+int PointDynamics::size() const
 {
 	return this->X.size();
 }
 
-int stark::PointDynamics::get_set_size(int idx_in_ps) const
+int PointDynamics::get_set_size(int idx_in_ps) const
 {
 	return this->X.get_set_size(idx_in_ps);
 }
 
-int stark::PointDynamics::get_begin(int idx_in_ps) const
+int PointDynamics::get_begin(int idx_in_ps) const
 {
 	return this->X.get_begin(idx_in_ps);
 }
 
-int stark::PointDynamics::get_end(int idx_in_ps) const
+int PointDynamics::get_end(int idx_in_ps) const
 {
 	return this->X.get_end(idx_in_ps);
 }
 
-int stark::PointDynamics::get_global_index(int idx_in_ps, int local_index) const
+int PointDynamics::get_global_index(int idx_in_ps, int local_index) const
 {
 	return this->X.get_global_index(idx_in_ps, local_index);
 }
 
-Eigen::Vector3d stark::PointDynamics::get_x1(int global_index, double dt) const
+Eigen::Vector3d PointDynamics::get_x1(int global_index, double dt) const
 {
 	return time_integration(this->x0[global_index], this->v1[global_index], dt);
 }
 
-void stark::PointDynamics::_before_time_step(stark::core::Stark& stark)
+void PointDynamics::_before_time_step(Stark& stark)
 {
 	// Set next time velocities estimation to zero to avoid invalid state outside of the minimzer
 	std::fill(this->v1.data.begin(), this->v1.data.end(), Eigen::Vector3d::Zero());
 }
 
-void stark::PointDynamics::_on_time_step_accepted(stark::core::Stark& stark)
+void PointDynamics::_on_time_step_accepted(Stark& stark)
 {
 	// Set final positions with solved velocities
 	const double dt = stark.dt;

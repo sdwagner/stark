@@ -9,8 +9,8 @@
 #include <symx>
 #include <fmt/format.h>
 
-using namespace stark::core;
 using namespace symx;
+using namespace stark;
 
 Stark::Stark(const Settings& settings)
 	: settings(settings)
@@ -246,7 +246,7 @@ std::string Stark::get_frame_path(std::string name) const
 {
 	return this->settings.output.output_directory + "/" + this->settings.output.simulation_name + "_" + name + "_" + std::to_string(this->current_frame);
 }
-void stark::core::Stark::print()
+void Stark::print()
 {
 	this->context->output->print_new_line(Verbosity::Minimal);
 	this->context->output->print_with_new_line("================================== Summary ===============================");

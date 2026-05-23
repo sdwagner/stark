@@ -3,10 +3,11 @@
 #include "../../time_integration.h"
 #include "../../../utils/include.h"
 
+using namespace stark;
 using namespace symx;
 constexpr double EPSILON = 1e-12;
 
-stark::EnergyDiscreteShells::EnergyDiscreteShells(stark::core::Stark& stark, spPointDynamics dyn)
+EnergyDiscreteShells::EnergyDiscreteShells(Stark& stark, spPointDynamics dyn)
 	: dyn(dyn)
 {
 	auto dihedral_angle_rad_f = [](std::vector<Vector>& x)
@@ -91,7 +92,7 @@ stark::EnergyDiscreteShells::EnergyDiscreteShells(stark::core::Stark& stark, spP
 		}
 	);
 }
-stark::EnergyDiscreteShells::Handler stark::EnergyDiscreteShells::add(const PointSetHandler& set, const std::vector<std::array<int, 3>>& triangles, const Params& params)
+EnergyDiscreteShells::Handler EnergyDiscreteShells::add(const PointSetHandler& set, const std::vector<std::array<int, 3>>& triangles, const Params& params)
 {
 	set.exit_if_not_valid("EnergyDiscreteShells::add");
 	const int group = (int)this->bending_stiffness.size();
@@ -170,7 +171,7 @@ stark::EnergyDiscreteShells::Handler stark::EnergyDiscreteShells::add(const Poin
 
 	return Handler(this, group);
 }
-stark::EnergyDiscreteShells::Params stark::EnergyDiscreteShells::get_params(const Handler& handler) const
+EnergyDiscreteShells::Params EnergyDiscreteShells::get_params(const Handler& handler) const
 {
 	handler.exit_if_not_valid("EnergyDiscreteShells::get_params");
 
@@ -183,7 +184,7 @@ stark::EnergyDiscreteShells::Params stark::EnergyDiscreteShells::get_params(cons
 	params.flat_rest_angle = this->flat_rest_angle[group];
 	return params;
 }
-void stark::EnergyDiscreteShells::set_params(const Handler& handler, const Params& params)
+void EnergyDiscreteShells::set_params(const Handler& handler, const Params& params)
 {
 	handler.exit_if_not_valid("EnergyDiscreteShells::set_params");
 

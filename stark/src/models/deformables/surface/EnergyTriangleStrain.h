@@ -41,7 +41,7 @@ namespace stark
 		
 	public:
 		/* Methods */
-		EnergyTriangleStrain(stark::core::Stark& stark, spPointDynamics dyn);
+		EnergyTriangleStrain(Stark& stark, spPointDynamics dyn);
 		Handler add(const PointSetHandler& set, const std::vector<std::array<int, 3>>& triangles, const Params& params);
 		Params get_params(const Handler& handler) const;
 		void set_params(const Handler& handler, const Params& params);

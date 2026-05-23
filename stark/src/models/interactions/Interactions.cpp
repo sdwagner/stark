@@ -2,7 +2,7 @@
 
 using namespace stark;
 
-stark::Interactions::Interactions(core::Stark& stark, spPointDynamics dyn, spRigidBodyDynamics rb)
+Interactions::Interactions(Stark& stark, spPointDynamics dyn, spRigidBodyDynamics rb)
 	: dyn(dyn), rb(rb)
 {
 	this->attachments = std::make_shared<EnergyAttachments>(stark, dyn, rb);

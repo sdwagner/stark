@@ -107,7 +107,7 @@ You can add custom physics without worrying about differentiation or other imple
 The following example adds an strongly coupled implicit magnetic attraction to deformable vertices, just with a small symbolic energy definition:
 
 ```cpp
-stark::core::Stark& stark_core = simulation.get_stark();
+stark::Stark& stark_core = simulation.get_stark();
 stark::PointDynamics* dyn = simulation.deformables->point_sets.get();
 
 stark_core.global_potential->add_potential("EnergyMagneticAttraction", magnetic_vertices,

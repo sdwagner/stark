@@ -14,22 +14,22 @@ int PointSetHandler::get_idx() const
 {
     return this->idx;
 }
-bool stark::PointSetHandler::is_valid() const
+bool PointSetHandler::is_valid() const
 {
 	return this->dyn != nullptr;
 }
-void stark::PointSetHandler::exit_if_not_valid(const std::string& where_) const
+void PointSetHandler::exit_if_not_valid(const std::string& where_) const
 {
 	if (!this->is_valid()) {
 		std::cout << "stark error: Invalid handler found in " << where_ << std::endl;
 		exit(-1);
 	}
 }
-std::string stark::PointSetHandler::get_label() const
+std::string PointSetHandler::get_label() const
 {
 	return this->dyn->labels[this->get_idx()];
 }
-PointSetHandler& stark::PointSetHandler::set_label(const std::string& label)
+PointSetHandler& PointSetHandler::set_label(const std::string& label)
 {
 	this->dyn->labels[this->get_idx()] = label;
 	return *this;
@@ -50,7 +50,7 @@ int PointSetHandler::get_global_index(int local_index) const
 {
 	return this->dyn->get_global_index(this->get_idx(), local_index);
 }
-std::vector<int> stark::PointSetHandler::all() const
+std::vector<int> PointSetHandler::all() const
 {
 	std::vector<int> indices(this->size());
 	std::iota(indices.begin(), indices.end(), 0);

@@ -1,13 +1,15 @@
 #include "EventDrivenScript.h"
 
-int stark::EventDrivenScript::add_event(std::function<void(EventInfo&)> action, std::function<bool(EventInfo&)> run_when, std::function<bool(EventInfo&)> delete_when)
+using namespace stark;
+
+int EventDrivenScript::add_event(std::function<void(EventInfo&)> action, std::function<bool(EventInfo&)> run_when, std::function<bool(EventInfo&)> delete_when)
 {
 	Event event_(this->event_counter, run_when, action, delete_when);
 	this->events.push_back(event_);
 	return this->event_counter++;
 }
 
-void stark::EventDrivenScript::run_a_cycle(double time)
+void EventDrivenScript::run_a_cycle(double time)
 {
 	for (auto it = this->events.begin(); it != this->events.end();)	{
 		
@@ -41,7 +43,7 @@ void stark::EventDrivenScript::run_a_cycle(double time)
 	}
 }
 
-void stark::EventDrivenScript::clear()
+void EventDrivenScript::clear()
 {
 	this->events.clear();
 }

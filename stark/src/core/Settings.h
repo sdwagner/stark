@@ -5,7 +5,7 @@
 #include <Eigen/Dense>
 #include <symx>
 
-namespace stark::core
+namespace stark
 {
 	struct Settings
 	{

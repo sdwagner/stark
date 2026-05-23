@@ -4,9 +4,10 @@
 #include "../../time_integration.h"
 #include "../../../utils/include.h"
 
+using namespace stark;
 using namespace symx;
 
-stark::EnergyTriangleStrain::EnergyTriangleStrain(stark::core::Stark& stark, spPointDynamics dyn)
+EnergyTriangleStrain::EnergyTriangleStrain(Stark& stark, spPointDynamics dyn)
 	: dyn(dyn)
 {
 	// Energies
@@ -128,7 +129,7 @@ stark::EnergyTriangleStrain::EnergyTriangleStrain(stark::core::Stark& stark, spP
 		}
 	);
 }
-stark::EnergyTriangleStrain::Handler stark::EnergyTriangleStrain::add(const PointSetHandler& set, const std::vector<std::array<int, 3>>& triangles, const Params& params)
+EnergyTriangleStrain::Handler EnergyTriangleStrain::add(const PointSetHandler& set, const std::vector<std::array<int, 3>>& triangles, const Params& params)
 {
 	set.exit_if_not_valid("EnergyTriangleStrain::add");
 	const int group = (int)this->youngs_modulus.size();
@@ -153,7 +154,7 @@ stark::EnergyTriangleStrain::Handler stark::EnergyTriangleStrain::add(const Poin
 
 	return Handler(this, group);
 }
-stark::EnergyTriangleStrain::Params stark::EnergyTriangleStrain::get_params(const Handler& handler) const
+EnergyTriangleStrain::Params EnergyTriangleStrain::get_params(const Handler& handler) const
 {
 	handler.exit_if_not_valid("EnergyTriangleStrain::get_params");
 
@@ -171,7 +172,7 @@ stark::EnergyTriangleStrain::Params stark::EnergyTriangleStrain::get_params(cons
 	params.inflation = this->inflation[group];
 	return params;
 }
-void stark::EnergyTriangleStrain::set_params(const Handler& handler, const Params& params)
+void EnergyTriangleStrain::set_params(const Handler& handler, const Params& params)
 {
 	handler.exit_if_not_valid("EnergyTriangleStrain::set_params");
 

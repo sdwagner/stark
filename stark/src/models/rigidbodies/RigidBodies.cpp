@@ -1,46 +1,48 @@
 #include "RigidBodies.h"
 #include <functional>
 
+using namespace stark;
 
-stark::RigidBodies::RigidBodies(core::Stark& stark, spRigidBodyDynamics rb)
+
+RigidBodies::RigidBodies(Stark& stark, spRigidBodyDynamics rb)
 	: rb(rb), output(stark, rb)
 {
 	this->inertia = std::make_shared<EnergyRigidBodyInertia>(stark, rb);
 	this->constraints = std::make_shared<EnergyRigidBodyConstraints>(stark, rb);
 }
 
-void stark::RigidBodies::set_default_constraint_stiffness(double stiffness)
+void RigidBodies::set_default_constraint_stiffness(double stiffness)
 {
 	this->default_stiffness = stiffness;
 }
-void stark::RigidBodies::set_default_constraint_distance_tolerance(double tolerance_in_m)
+void RigidBodies::set_default_constraint_distance_tolerance(double tolerance_in_m)
 {
 	this->default_tolerance_in_m = tolerance_in_m;
 }
-void stark::RigidBodies::set_default_constraint_angle_tolerance(double tolerance_in_deg)
+void RigidBodies::set_default_constraint_angle_tolerance(double tolerance_in_deg)
 {
 	this->default_tolerance_in_deg = tolerance_in_deg;
 }
-double stark::RigidBodies::get_default_constraint_stiffness() const
+double RigidBodies::get_default_constraint_stiffness() const
 {
 	return this->default_stiffness;
 }
-double stark::RigidBodies::get_default_constraint_distance_tolerance() const
+double RigidBodies::get_default_constraint_distance_tolerance() const
 {
 	return this->default_tolerance_in_m;
 }
-double stark::RigidBodies::get_default_constraint_angle_tolerance() const
+double RigidBodies::get_default_constraint_angle_tolerance() const
 {
 	return this->default_tolerance_in_deg;
 }
-stark::RigidBodyHandler stark::RigidBodies::add(const double mass, const Eigen::Matrix3d& inertia_local)
+RigidBodyHandler RigidBodies::add(const double mass, const Eigen::Matrix3d& inertia_local)
 {
 	const int rb_idx = this->rb->add();
 	this->inertia->add(rb_idx, mass, inertia_local);
 	return RigidBodyHandler(this->rb.get(), this->inertia.get(), rb_idx);
 }
 
-stark::RBCGlobalPointHandler stark::RigidBodies::add_constraint_global_point(const RigidBodyHandler& body, const Eigen::Vector3d& p_glob)
+RBCGlobalPointHandler RigidBodies::add_constraint_global_point(const RigidBodyHandler& body, const Eigen::Vector3d& p_glob)
 {
 	body.exit_if_not_valid("RigidBodies::add_constraint_global_point");
 	const int idx = this->constraints->global_points->add(
@@ -52,7 +54,7 @@ stark::RBCGlobalPointHandler stark::RigidBodies::add_constraint_global_point(con
 	);
 	return RBCGlobalPointHandler(body, this->constraints->global_points, idx);
 }
-stark::RBCGlobalDirectionHandler stark::RigidBodies::add_constraint_global_direction(const RigidBodyHandler& body, const Eigen::Vector3d& d_glob)
+RBCGlobalDirectionHandler RigidBodies::add_constraint_global_direction(const RigidBodyHandler& body, const Eigen::Vector3d& d_glob)
 {
 	body.exit_if_not_valid("RigidBodies::add_constraint_global_direction");
 	const int idx = this->constraints->global_directions->add(
@@ -64,7 +66,7 @@ stark::RBCGlobalDirectionHandler stark::RigidBodies::add_constraint_global_direc
 	);
 	return RBCGlobalDirectionHandler(body, this->constraints->global_directions, idx);
 }
-stark::RBCPointHandler stark::RigidBodies::add_constraint_point(const RigidBodyHandler& body_a, const RigidBodyHandler& body_b, const Eigen::Vector3d& p_glob)
+RBCPointHandler RigidBodies::add_constraint_point(const RigidBodyHandler& body_a, const RigidBodyHandler& body_b, const Eigen::Vector3d& p_glob)
 {
 	body_a.exit_if_not_valid("RigidBodies::add_constraint_point");
 	body_b.exit_if_not_valid("RigidBodies::add_constraint_point");
@@ -78,7 +80,7 @@ stark::RBCPointHandler stark::RigidBodies::add_constraint_point(const RigidBodyH
 	);
 	return RBCPointHandler(body_a, body_b, this->constraints->points, idx);
 }
-stark::RBCPointOnAxisHandler stark::RigidBodies::add_constraint_point_on_axis(const RigidBodyHandler& body_a, const RigidBodyHandler& body_b, const Eigen::Vector3d& p_glob, const Eigen::Vector3d& d_glob)
+RBCPointOnAxisHandler RigidBodies::add_constraint_point_on_axis(const RigidBodyHandler& body_a, const RigidBodyHandler& body_b, const Eigen::Vector3d& p_glob, const Eigen::Vector3d& d_glob)
 {
 	body_a.exit_if_not_valid("RigidBodies::add_constraint_point_on_axis");
 	body_b.exit_if_not_valid("RigidBodies::add_constraint_point_on_axis");
@@ -93,7 +95,7 @@ stark::RBCPointOnAxisHandler stark::RigidBodies::add_constraint_point_on_axis(co
 	);
 	return RBCPointOnAxisHandler(body_a, body_b, this->constraints->point_on_axes, idx);
 }
-stark::RBCDistanceHandler stark::RigidBodies::add_constraint_distance(const RigidBodyHandler& body_a, const RigidBodyHandler& body_b, const Eigen::Vector3d& a_glob, const Eigen::Vector3d& b_glob)
+RBCDistanceHandler RigidBodies::add_constraint_distance(const RigidBodyHandler& body_a, const RigidBodyHandler& body_b, const Eigen::Vector3d& a_glob, const Eigen::Vector3d& b_glob)
 {
 	body_a.exit_if_not_valid("RigidBodies::add_constraint_distance");
 	body_b.exit_if_not_valid("RigidBodies::add_constraint_distance");
@@ -108,7 +110,7 @@ stark::RBCDistanceHandler stark::RigidBodies::add_constraint_distance(const Rigi
 	);
 	return RBCDistanceHandler(body_a, body_b, this->constraints->distances, idx);
 }
-stark::RBCDistanceLimitHandler stark::RigidBodies::add_constraint_distance_limits(const RigidBodyHandler& body_a, const RigidBodyHandler& body_b, const Eigen::Vector3d& a_glob, const Eigen::Vector3d& b_glob, double min_distance, double max_distance)
+RBCDistanceLimitHandler RigidBodies::add_constraint_distance_limits(const RigidBodyHandler& body_a, const RigidBodyHandler& body_b, const Eigen::Vector3d& a_glob, const Eigen::Vector3d& b_glob, double min_distance, double max_distance)
 {
 	body_a.exit_if_not_valid("RigidBodies::add_constraint_distance_limits");
 	body_b.exit_if_not_valid("RigidBodies::add_constraint_distance_limits");
@@ -131,7 +133,7 @@ stark::RBCDistanceLimitHandler stark::RigidBodies::add_constraint_distance_limit
 	);
 	return RBCDistanceLimitHandler(body_a, body_b, this->constraints->distance_limits, idx);
 }
-stark::RBCDirectionHandler stark::RigidBodies::add_constraint_direction(const RigidBodyHandler& body_a, const RigidBodyHandler& body_b, const Eigen::Vector3d& d_glob)
+RBCDirectionHandler RigidBodies::add_constraint_direction(const RigidBodyHandler& body_a, const RigidBodyHandler& body_b, const Eigen::Vector3d& d_glob)
 {
 	body_a.exit_if_not_valid("RigidBodies::add_constraint_direction");
 	body_b.exit_if_not_valid("RigidBodies::add_constraint_direction");
@@ -145,7 +147,7 @@ stark::RBCDirectionHandler stark::RigidBodies::add_constraint_direction(const Ri
 	);
 	return RBCDirectionHandler(body_a, body_b, this->constraints->directions, idx);
 }
-stark::RBCAngleLimitHandler stark::RigidBodies::add_constraint_angle_limit(const RigidBodyHandler& body_a, const RigidBodyHandler& body_b, const Eigen::Vector3d& d_glob, double admissible_angle_deg)
+RBCAngleLimitHandler RigidBodies::add_constraint_angle_limit(const RigidBodyHandler& body_a, const RigidBodyHandler& body_b, const Eigen::Vector3d& d_glob, double admissible_angle_deg)
 {
 	body_a.exit_if_not_valid("RigidBodies::add_constraint_angle_limit");
 	body_b.exit_if_not_valid("RigidBodies::add_constraint_angle_limit");
@@ -160,7 +162,7 @@ stark::RBCAngleLimitHandler stark::RigidBodies::add_constraint_angle_limit(const
 	);
 	return RBCAngleLimitHandler(body_a, body_b, this->constraints->angle_limits, idx);
 }
-stark::RBCDampedSpringHandler stark::RigidBodies::add_constraint_spring(const RigidBodyHandler& body_a, const RigidBodyHandler& body_b, const Eigen::Vector3d& a_glob, const Eigen::Vector3d& b_glob, double stiffness, double damping)
+RBCDampedSpringHandler RigidBodies::add_constraint_spring(const RigidBodyHandler& body_a, const RigidBodyHandler& body_b, const Eigen::Vector3d& a_glob, const Eigen::Vector3d& b_glob, double stiffness, double damping)
 {
 	body_a.exit_if_not_valid("RigidBodies::add_constraint_spring");
 	body_b.exit_if_not_valid("RigidBodies::add_constraint_spring");
@@ -175,7 +177,7 @@ stark::RBCDampedSpringHandler stark::RigidBodies::add_constraint_spring(const Ri
 	);
 	return RBCDampedSpringHandler(body_a, body_b, this->constraints->damped_springs, idx);
 }
-stark::RBCLinearVelocityHandler stark::RigidBodies::add_constraint_linear_velocity(const RigidBodyHandler& body_a, const RigidBodyHandler& body_b, const Eigen::Vector3d& d_glob, double target_v, double max_force, double delay)
+RBCLinearVelocityHandler RigidBodies::add_constraint_linear_velocity(const RigidBodyHandler& body_a, const RigidBodyHandler& body_b, const Eigen::Vector3d& d_glob, double target_v, double max_force, double delay)
 {
 	body_a.exit_if_not_valid("RigidBodies::add_constraint_linear_velocity");
 	body_b.exit_if_not_valid("RigidBodies::add_constraint_linear_velocity");
@@ -196,7 +198,7 @@ stark::RBCLinearVelocityHandler stark::RigidBodies::add_constraint_linear_veloci
 	);
 	return RBCLinearVelocityHandler(body_a, body_b, this->constraints->linear_velocity, idx);
 }
-stark::RBCAngularVelocityHandler stark::RigidBodies::add_constraint_angular_velocity(const RigidBodyHandler& body_a, const RigidBodyHandler& body_b, const Eigen::Vector3d& d_glob, double target_w, double max_abs_torque, double delay)
+RBCAngularVelocityHandler RigidBodies::add_constraint_angular_velocity(const RigidBodyHandler& body_a, const RigidBodyHandler& body_b, const Eigen::Vector3d& d_glob, double target_w, double max_abs_torque, double delay)
 {
 	body_a.exit_if_not_valid("RigidBodies::add_constraint_angular_velocity");
 	body_b.exit_if_not_valid("RigidBodies::add_constraint_angular_velocity");
@@ -217,7 +219,7 @@ stark::RBCAngularVelocityHandler stark::RigidBodies::add_constraint_angular_velo
 	);
 	return RBCAngularVelocityHandler(body_a, body_b, this->constraints->angular_velocity, idx);
 }
-stark::RBCFixHandler stark::RigidBodies::add_constraint_fix(const RigidBodyHandler& body)
+RBCFixHandler RigidBodies::add_constraint_fix(const RigidBodyHandler& body)
 {
 	body.exit_if_not_valid("RigidBodies::add_constraint_fix");
 	auto anchor_point = this->add_constraint_global_point(body, body.get_translation());
@@ -225,7 +227,7 @@ stark::RBCFixHandler stark::RigidBodies::add_constraint_fix(const RigidBodyHandl
 	auto x_lock = this->add_constraint_global_direction(body, Eigen::Vector3d::UnitX());
 	return RBCFixHandler(body, anchor_point, z_lock, x_lock);
 }
-stark::RBCAttachmentHandler stark::RigidBodies::add_constraint_attachment(const RigidBodyHandler& body_a, const RigidBodyHandler& body_b)
+RBCAttachmentHandler RigidBodies::add_constraint_attachment(const RigidBodyHandler& body_a, const RigidBodyHandler& body_b)
 {
 	body_a.exit_if_not_valid("RigidBodies::add_constraint_attachment");
 	body_b.exit_if_not_valid("RigidBodies::add_constraint_attachment");
@@ -234,7 +236,7 @@ stark::RBCAttachmentHandler stark::RigidBodies::add_constraint_attachment(const 
 	auto x_lock = this->add_constraint_direction(body_a, body_b, Eigen::Vector3d::UnitX());
 	return RBCAttachmentHandler(body_a, body_b, point, z_lock, x_lock);
 }
-stark::RBCPointWithAngleLimitHandler stark::RigidBodies::add_constraint_point_with_angle_limit(const RigidBodyHandler& body_a, const RigidBodyHandler& body_b, const Eigen::Vector3d& p_glob, const Eigen::Vector3d& d_glob, const double admissible_angle_deg)
+RBCPointWithAngleLimitHandler RigidBodies::add_constraint_point_with_angle_limit(const RigidBodyHandler& body_a, const RigidBodyHandler& body_b, const Eigen::Vector3d& p_glob, const Eigen::Vector3d& d_glob, const double admissible_angle_deg)
 {
 	body_a.exit_if_not_valid("RigidBodies::add_constraint_point_with_angle_limit");
 	body_b.exit_if_not_valid("RigidBodies::add_constraint_point_with_angle_limit");
@@ -242,7 +244,7 @@ stark::RBCPointWithAngleLimitHandler stark::RigidBodies::add_constraint_point_wi
     auto angle_limit = this->add_constraint_angle_limit(body_a, body_b, d_glob, admissible_angle_deg);
 	return RBCPointWithAngleLimitHandler(body_a, body_b, point, angle_limit);
 }
-stark::RBCHingeJointHandler stark::RigidBodies::add_constraint_hinge(const RigidBodyHandler& body_a, const RigidBodyHandler& body_b, const Eigen::Vector3d& p_glob, const Eigen::Vector3d& d_glob)
+RBCHingeJointHandler RigidBodies::add_constraint_hinge(const RigidBodyHandler& body_a, const RigidBodyHandler& body_b, const Eigen::Vector3d& p_glob, const Eigen::Vector3d& d_glob)
 {
 	body_a.exit_if_not_valid("RigidBodies::add_constraint_hinge");
 	body_b.exit_if_not_valid("RigidBodies::add_constraint_hinge");
@@ -250,7 +252,7 @@ stark::RBCHingeJointHandler stark::RigidBodies::add_constraint_hinge(const Rigid
 	auto direction = this->add_constraint_direction(body_a, body_b, d_glob);
 	return RBCHingeJointHandler(body_a, body_b, point, direction);
 }
-stark::RBCHingeJointWithAngleLimitHandler stark::RigidBodies::add_constraint_hinge_with_angle_limit(const RigidBodyHandler& body_a, const RigidBodyHandler& body_b, const Eigen::Vector3d& p_glob, const Eigen::Vector3d& d_glob, double admissible_angle_deg)
+RBCHingeJointWithAngleLimitHandler RigidBodies::add_constraint_hinge_with_angle_limit(const RigidBodyHandler& body_a, const RigidBodyHandler& body_b, const Eigen::Vector3d& p_glob, const Eigen::Vector3d& d_glob, double admissible_angle_deg)
 {
 	body_a.exit_if_not_valid("RigidBodies::add_constraint_hinge_with_angle_limit");
 	body_b.exit_if_not_valid("RigidBodies::add_constraint_hinge_with_angle_limit");
@@ -260,7 +262,7 @@ stark::RBCHingeJointWithAngleLimitHandler stark::RigidBodies::add_constraint_hin
 	auto angle_limits = this->add_constraint_angle_limit(body_a, body_b, u, admissible_angle_deg);
 	return RBCHingeJointWithAngleLimitHandler(body_a, body_b, hinge_joint, angle_limits);
 }
-stark::RBCSliderHandler stark::RigidBodies::add_constraint_slider(const RigidBodyHandler& body_a, const RigidBodyHandler& body_b, const Eigen::Vector3d& p_glob, const Eigen::Vector3d& d_glob)
+RBCSliderHandler RigidBodies::add_constraint_slider(const RigidBodyHandler& body_a, const RigidBodyHandler& body_b, const Eigen::Vector3d& p_glob, const Eigen::Vector3d& d_glob)
 {
 	body_a.exit_if_not_valid("RigidBodies::add_constraint_slider");
 	body_b.exit_if_not_valid("RigidBodies::add_constraint_slider");
@@ -268,7 +270,7 @@ stark::RBCSliderHandler stark::RigidBodies::add_constraint_slider(const RigidBod
 	auto dir_lock = this->add_constraint_direction(body_a, body_b, d_glob);
 	return RBCSliderHandler(body_a, body_b, point_on_axes, dir_lock);
 }
-stark::RBCPrismaticSliderHandler stark::RigidBodies::add_constraint_prismatic_slider(const RigidBodyHandler& body_a, const RigidBodyHandler& body_b, const Eigen::Vector3d& p_glob, const Eigen::Vector3d& d_glob)
+RBCPrismaticSliderHandler RigidBodies::add_constraint_prismatic_slider(const RigidBodyHandler& body_a, const RigidBodyHandler& body_b, const Eigen::Vector3d& p_glob, const Eigen::Vector3d& d_glob)
 {
 	body_a.exit_if_not_valid("RigidBodies::add_constraint_prismatic_slider");
 	body_b.exit_if_not_valid("RigidBodies::add_constraint_prismatic_slider");
@@ -278,7 +280,7 @@ stark::RBCPrismaticSliderHandler stark::RigidBodies::add_constraint_prismatic_sl
 	auto dir_lock = this->add_constraint_direction(body_a, body_b, u);
 	return RBCPrismaticSliderHandler(body_a, body_b, slider, dir_lock);
 }
-stark::RBCSpringWithLimitsHandler stark::RigidBodies::add_constraint_spring_with_limits(const RigidBodyHandler& body_a, const RigidBodyHandler& body_b, const Eigen::Vector3d& a_glob, const Eigen::Vector3d& b_glob, double stiffness, double min_length, double max_length, double damping)
+RBCSpringWithLimitsHandler RigidBodies::add_constraint_spring_with_limits(const RigidBodyHandler& body_a, const RigidBodyHandler& body_b, const Eigen::Vector3d& a_glob, const Eigen::Vector3d& b_glob, double stiffness, double min_length, double max_length, double damping)
 {
 	body_a.exit_if_not_valid("RigidBodies::add_constraint_spring_with_limits");
 	body_b.exit_if_not_valid("RigidBodies::add_constraint_spring_with_limits");
@@ -286,7 +288,7 @@ stark::RBCSpringWithLimitsHandler stark::RigidBodies::add_constraint_spring_with
 	auto distance_limits = this->add_constraint_distance_limits(body_a, body_b, a_glob, b_glob, min_length, max_length);
 	return RBCSpringWithLimitsHandler(body_a, body_b, spring, distance_limits);
 }
-stark::RBCPrismaticPressHandler stark::RigidBodies::add_constraint_prismatic_press(const RigidBodyHandler& body_a, const RigidBodyHandler& body_b, const Eigen::Vector3d& p_glob, const Eigen::Vector3d& d_glob, double target_v, double max_force, double delay)
+RBCPrismaticPressHandler RigidBodies::add_constraint_prismatic_press(const RigidBodyHandler& body_a, const RigidBodyHandler& body_b, const Eigen::Vector3d& p_glob, const Eigen::Vector3d& d_glob, double target_v, double max_force, double delay)
 {
 	body_a.exit_if_not_valid("RigidBodies::add_constraint_prismatic_press");
 	body_b.exit_if_not_valid("RigidBodies::add_constraint_prismatic_press");
@@ -294,7 +296,7 @@ stark::RBCPrismaticPressHandler stark::RigidBodies::add_constraint_prismatic_pre
 	auto linear_velocity = this->add_constraint_linear_velocity(body_a, body_b, d_glob, target_v, max_force, delay);
 	return RBCPrismaticPressHandler(body_a, body_b, prismatic_slider, linear_velocity);
 }
-stark::RBCMotorHandler stark::RigidBodies::add_constraint_motor(const RigidBodyHandler& body_a, const RigidBodyHandler& body_b, const Eigen::Vector3d& p_glob, const Eigen::Vector3d& d_glob, double target_w, double max_torque, double delay)
+RBCMotorHandler RigidBodies::add_constraint_motor(const RigidBodyHandler& body_a, const RigidBodyHandler& body_b, const Eigen::Vector3d& p_glob, const Eigen::Vector3d& d_glob, double target_w, double max_torque, double delay)
 {
 	body_a.exit_if_not_valid("RigidBodies::add_constraint_motor");
 	body_b.exit_if_not_valid("RigidBodies::add_constraint_motor");
