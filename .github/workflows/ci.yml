@@ -1,0 +1,71 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build-and-test:
+    name: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-14, windows-2022]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Python is needed for the pystark bindings (nanobind extension module).
+      - name: Set up Python
+        id: python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      # Apple Clang ships without OpenMP; install it via Homebrew.
+      - name: Install OpenMP (macOS)
+        if: runner.os == 'macOS'
+        run: brew install libomp
+
+      # ── Configure ──────────────────────────────────────────────────────────
+
+      - name: Configure CMake (Linux / Windows)
+        if: runner.os != 'macOS'
+        shell: bash
+        run: |
+          cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DSTARK_BUILD_EXAMPLES=ON \
+            -DSTARK_BUILD_TESTS=ON \
+            -DSTARK_BUILD_PYTHON_BINDINGS=ON \
+            -DSTARK_PYTHON_EXECUTABLE="${{ steps.python.outputs.python-path }}"
+
+      # On macOS, CMake cannot find libomp automatically; supply the paths
+      # that Homebrew installs it to.
+      - name: Configure CMake (macOS)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          LIBOMP="$(brew --prefix libomp)"
+          cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DSTARK_BUILD_EXAMPLES=ON \
+            -DSTARK_BUILD_TESTS=ON \
+            -DSTARK_BUILD_PYTHON_BINDINGS=ON \
+            -DSTARK_PYTHON_EXECUTABLE="${{ steps.python.outputs.python-path }}" \
+            -DOpenMP_CXX_FLAGS="-Xpreprocessor -fopenmp -I${LIBOMP}/include" \
+            -DOpenMP_CXX_LIB_NAMES=omp \
+            "-DOpenMP_omp_LIBRARY=${LIBOMP}/lib/libomp.dylib"
+
+      # ── Build ──────────────────────────────────────────────────────────────
+
+      - name: Build
+        run: cmake --build build --config Release --parallel
+
+      # ── Test ───────────────────────────────────────────────────────────────
+
+      # --build-config is ignored by single-config generators (Make/Ninja) and
+      # selects the Release configuration on multi-config generators (MSVC).
+      - name: Test
+        run: ctest --test-dir build --build-config Release --output-on-failure

@@ -36,6 +36,7 @@ if(STARK_BUILD_EXAMPLES)
 endif()
 
 if(STARK_BUILD_TESTS)
+    include(CTest)
     add_subdirectory(tests)
 endif()
 

@@ -26,6 +26,7 @@ FetchContent_Declare(
     nanobind
     GIT_REPOSITORY https://github.com/wjakob/nanobind.git
     GIT_TAG        ${STARK_NANOBIND_GIT_TAG}
+    GIT_SHALLOW    TRUE
 )
 
 FetchContent_MakeAvailable(nanobind)

@@ -19,3 +19,5 @@ target_link_libraries(stark_tests PRIVATE Catch2::Catch2WithMain)
 
 # Define directory paths
 target_compile_definitions(stark_tests PUBLIC STARK_TESTS_OUTPUT_DIR="${CMAKE_BINARY_DIR}/output")
+
+add_test(NAME stark_tests COMMAND stark_tests)
