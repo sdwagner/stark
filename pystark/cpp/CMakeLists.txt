@@ -29,6 +29,21 @@ FetchContent_Declare(
     GIT_SHALLOW    TRUE
 )
 
+# nanobind caches NB_SUFFIX (the .pyd/.so extension tag) in CMakeCache.txt.
+# When the active Python interpreter changes (e.g. cp312 → cp311) the cached
+# value becomes stale because nanobind uses "set(... CACHE INTERNAL)" without
+# FORCE, so it never overwrites an existing entry.  We query the interpreter
+# here and force-write the cache entry so that the generated library always
+# carries the correct tag regardless of previous configure runs.
+execute_process(
+    COMMAND "${Python_EXECUTABLE}" "-c"
+        "import sysconfig; print(sysconfig.get_config_var('EXT_SUFFIX'))"
+    OUTPUT_VARIABLE _pystark_ext_suffix
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+set(NB_SUFFIX  "${_pystark_ext_suffix}" CACHE INTERNAL "" FORCE)
+set(NB_SUFFIX_S "${_pystark_ext_suffix}" CACHE INTERNAL "" FORCE)
+
 FetchContent_MakeAvailable(nanobind)
 
 # Source files

@@ -18,6 +18,14 @@ using namespace nb::literals;
 
 #include <cstring>
 
+// ssize_t is a POSIX type not provided by MSVC's standard headers.
+// Python's headers define Py_ssize_t; make ssize_t an alias so that nanobind's
+// ndarray.h (template <ssize_t... Is> struct shape) and our own templates
+// compile cleanly on Windows.
+#if defined(_MSC_VER) && !defined(ssize_t)
+using ssize_t = Py_ssize_t;
+#endif
+
 
 // Type shortcuts
 #include <stark>
