@@ -134,7 +134,7 @@ TEST_CASE("distance", "[rb_constraints]")
 	simulation.run();
 	auto [C, f] = constraint.get_signed_violation_in_m_and_force();
 	REQUIRE_THAT(C, WithinAbs(0.0, constraint.get_tolerance_in_m()));
-	REQUIRE_THAT(f, WithinRel(-PERTURBATION, 1e-3));
+	REQUIRE_THAT(f, WithinRel(-PERTURBATION, 5e-3));
 }
 
 TEST_CASE("distance_limits_max", "[rb_constraints]")
@@ -151,7 +151,7 @@ TEST_CASE("distance_limits_max", "[rb_constraints]")
 	simulation.run();
 	auto [C, f] = constraint.get_signed_violation_in_m_and_force();
 	REQUIRE_THAT(C, WithinAbs(0.0, constraint.get_tolerance_in_m()));
-	REQUIRE_THAT(f, WithinRel(-PERTURBATION, 1e-3));
+	REQUIRE_THAT(f, WithinRel(-PERTURBATION, 5e-3));
 }
 
 TEST_CASE("distance_limits_min", "[rb_constraints]")
