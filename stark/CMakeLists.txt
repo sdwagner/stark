@@ -71,9 +71,17 @@ set(MODELS_DEFORMABLES_FILES
 	src/models/deformables/surface/EnergyTriangleStrain.h
 	src/models/deformables/surface/EnergyDiscreteShells.cpp
 	src/models/deformables/surface/EnergyDiscreteShells.h
+	src/models/deformables/surface/EnergyQuadraticBending.cpp
+	src/models/deformables/surface/EnergyQuadraticBending.h
+	src/models/deformables/surface/EnergyTriangleArea.cpp
+	src/models/deformables/surface/EnergyTriangleArea.h
+	src/models/deformables/surface/EnergyTriangleStretching.cpp
+	src/models/deformables/surface/EnergyTriangleStretching.h
 
 	src/models/deformables/volume/EnergyTetStrain.cpp
 	src/models/deformables/volume/EnergyTetStrain.h
+	src/models/deformables/volume/EnergyPrescribedPositionsTetBarycentric.cpp
+	src/models/deformables/volume/EnergyPrescribedPositionsTetBarycentric.h
 
 	src/models/deformables/deformable_tools.cpp
 	src/models/deformables/deformable_tools.h
@@ -158,6 +166,8 @@ set(UTILS_FILES
 	src/utils/mesh_utils.cpp
 	src/utils/mesh_generators.cpp
 	src/utils/mesh_generators.h
+	src/utils/mesh_usd_exporter.cpp
+	src/utils/mesh_usd_exporter.h
 	src/utils/unordered_array_set_and_map.h
 	src/utils/blends.cpp
 	src/utils/blends.h
@@ -189,6 +199,12 @@ target_include_directories(stark PUBLIC extern/TriangleMeshCollisionDetection/in
 
 ## vtkio
 target_include_directories(stark PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/extern/vtkio/include)
+
+set(OPENUSD_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../OpenUSD/install")
+list(APPEND CMAKE_PREFIX_PATH "${OPENUSD_ROOT}")
+find_package(PXR REQUIRED COMPONENTS usd usdGeom)
+target_link_libraries(stark usd usdGeom)
+target_include_directories(stark PRIVATE "${OPENUSD_ROOT}/include")
 
 ## TriangleMeshDistance
 target_include_directories(stark PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/extern/TriangleMeshDistance/include)

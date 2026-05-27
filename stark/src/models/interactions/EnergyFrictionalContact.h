@@ -53,6 +53,8 @@ namespace stark
 			inline void set_contact_thickness(double d) { this->model->set_contact_thickness(*this, d); }
 			inline void set_friction(const Handler& other, double coulombs_mu) { this->model->set_friction(*this, other, coulombs_mu); }
 			inline void disable_collision(const Handler& other) { this->model->disable_collision(*this, other); }
+			inline void enable_collision(const Handler& other) { this->model->enable_collision(*this, other); }
+			inline bool is_collision_enabled(const Handler& other) { return this->model->is_collision_enabled(*this, other); }
 			inline bool is_valid() const { return this->model != nullptr; }
 			inline void exit_if_not_valid(const std::string& where_) const { if (!this->is_valid()) { std::cout << "stark error: Invalid handler found in " << where_ << std::endl; exit(-1); } }
 		};
@@ -118,6 +120,8 @@ namespace stark
 		double get_contact_stiffness() const;
 		void set_friction(const Handler& obj0, const Handler& obj1, const double coulombs_coefficient);
 		void disable_collision(const Handler& obj0, const Handler& obj1);
+		void enable_collision(const Handler& obj0, const Handler& obj1);
+		bool is_collision_enabled(const Handler& obj0, const Handler& obj1);
 		bool is_empty() const;
 
 	private:
@@ -150,6 +154,7 @@ namespace stark
 		void _on_intermediate_state_invalid(Stark& stark);
 		void _on_time_step_accepted(Stark& stark);
 		bool _should_continue_execution(Stark& stark);
+		bool _is_state_valid(Stark& stark);
 
 
 		// SymX definitions

@@ -24,6 +24,8 @@ namespace stark
 		void add_segment_mesh(const std::string& label, const PointSetHandler& set, const std::vector<std::array<int, 2>>& conn, const std::vector<int>& point_set_map);
 		void add_triangle_mesh(const std::string& label, const PointSetHandler& set, const std::vector<std::array<int, 3>>& conn);
 		void add_triangle_mesh(const std::string& label, const PointSetHandler& set, const std::vector<std::array<int, 3>>& conn, const std::vector<int>& point_set_map);
+		void add_triangle_mesh(const std::string& label, const PointSetHandler& set, const std::vector<std::array<int, 3>>& conn, const std::vector<Eigen::Vector2d>& tex_coords);
+		void add_triangle_mesh(const std::string& label, const PointSetHandler& set, const std::vector<std::array<int, 3>>& conn, const std::vector<Eigen::Vector2d>& tex_coords, const std::vector<int>& point_set_map);
 		void add_tet_mesh(const std::string& label, const PointSetHandler& set, const std::vector<std::array<int, 4>>& conn);
 		void add_tet_mesh(const std::string& label, const PointSetHandler& set, const std::vector<std::array<int, 4>>& conn, const std::vector<int>& point_set_map);
 
@@ -38,6 +40,7 @@ namespace stark
 			PointSetHandler set;  // Node set for the deformable
 			std::vector<std::array<int, N>> conn; // Local connectivity (e.g. the surface nodes, not the tet nodes)
 			std::vector<int> point_set_map; // E.g. mapping from surface indices to tet indices
+			std::vector<Eigen::Vector2d> texture_coords; // Halfedge-based tex coords
 		};
 
 		// Connectivities
@@ -62,6 +65,8 @@ namespace stark
 		/* Methods */
 		void _write_frame(Stark& stark);
 
+		void write_USD(Stark& stark, const MeshOutputGroups& groups, const std::vector<Mesh<
+		               3>>& meshes);
 		template<std::size_t N>
 		void _write(Stark& stark, const MeshOutputGroups& groups, const std::vector<DeformablesMeshOutput::Mesh<N>>& meshes, std::vector<std::array<int, N>>& conn_buffer);
 	};

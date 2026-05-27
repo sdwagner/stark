@@ -60,6 +60,22 @@ void tmcd::ProximityDetection::add_blacklist(const int32_t mesh_id_0, const int3
 	}
 	this->add_blacklist_range_edge_edge(mesh_id_0, { 0, this->meshes.n_edges_in_set[mesh_id_0] }, mesh_id_1, { 0, this->meshes.n_edges_in_set[mesh_id_1] });
 }
+void tmcd::ProximityDetection::remove_blacklist_range_point_triangle(const int32_t point_mesh_id, const std::array<int32_t, 2>& loc_point_interval, const int32_t triangle_mesh_id, const std::array<int32_t, 2>& loc_triangle_interval)
+{
+	this->bp.remove_blacklist_range_point_triangle(point_mesh_id, loc_point_interval, triangle_mesh_id, loc_triangle_interval);
+}
+void tmcd::ProximityDetection::remove_blacklist_range_edge_edge(const int32_t mesh_id_0, const std::array<int32_t, 2>& loc_interval_0, const int32_t mesh_id_1, const std::array<int32_t, 2>& loc_interval_1)
+{
+	this->bp.remove_blacklist_range_edge_edge(mesh_id_0, loc_interval_0, mesh_id_1, loc_interval_1);
+}
+void tmcd::ProximityDetection::remove_blacklist(const int32_t mesh_id_0, const int32_t mesh_id_1)
+{
+	this->remove_blacklist_range_point_triangle(mesh_id_0, { 0, this->meshes.n_points_in_set[mesh_id_0] }, mesh_id_1, { 0, this->meshes.n_triangles_in_set[mesh_id_1] });
+	if (mesh_id_0 != mesh_id_1) {
+		this->remove_blacklist_range_point_triangle(mesh_id_1, { 0, this->meshes.n_points_in_set[mesh_id_1] }, mesh_id_0, { 0, this->meshes.n_triangles_in_set[mesh_id_0] });
+	}
+	this->remove_blacklist_range_edge_edge(mesh_id_0, { 0, this->meshes.n_edges_in_set[mesh_id_0] }, mesh_id_1, { 0, this->meshes.n_edges_in_set[mesh_id_1] });
+}
 void tmcd::ProximityDetection::activate_point_triangle(const bool activate)
 {
 	this->is_point_triangle_enabled = activate;

@@ -18,7 +18,6 @@ EnergyTriangleStrain::EnergyTriangleStrain(Stark& stark, spPointDynamics dyn)
 			std::vector<Index> triangle = conn.slice(2, 5);
 
 			// Create symbols
-			std::vector<Vector> v1 = mws.make_vectors(this->dyn->v1.data, triangle);
 			std::vector<Vector> x0 = mws.make_vectors(this->dyn->x0.data, triangle);
 			std::vector<Vector> X = mws.make_vectors(this->dyn->X.data, triangle);
 			Scalar scale = mws.make_scalar(this->scale, conn["group"]);
@@ -29,17 +28,22 @@ EnergyTriangleStrain::EnergyTriangleStrain(Stark& stark, spPointDynamics dyn)
 			Scalar strain_limit = mws.make_scalar(this->strain_limit, conn["group"]);
 			Scalar strain_limit_stiffness = mws.make_scalar(this->strain_limit_stiffness, conn["group"]);
 			Scalar inflation = mws.make_scalar(this->inflation, conn["group"]);
+			Scalar rest_area_unscaled = mws.make_scalar(this->rest_area, conn["idx"]);
+			Vector DXinv_vec = mws.make_vector(this->inv_rest_jacobian, conn["idx"]);
 			Scalar dt = mws.make_scalar(stark.dt);
+			Scalar rest_area = scale * scale * rest_area_unscaled;
+
 
 			// Time integration
+			std::vector<Vector> v1 = mws.make_vectors(this->dyn->v1.data, triangle);
 			std::vector<Vector> x1 = time_integration(x0, v1, dt);
+
 
 			// Scaling
 			std::vector<Vector> Xs = { scale * X[0], scale * X[1], scale * X[2] };
 
 			// Kinematics
-			Scalar rest_area = 0.5 * ((Xs[0] - Xs[2]).cross3(Xs[1] - Xs[2])).norm();
-			Matrix DXinv = triangle_jacobian(Xs).inv();
+			Matrix DXinv = Matrix(collect_scalars({DXinv_vec}), {2,2});
 			Matrix Dx1_32 = Matrix(collect_scalars({ x1[1] - x1[0], x1[2] - x1[0] }), { 2, 3 }).transpose();
 			Matrix F1_32 = Dx1_32 * DXinv;  // 3x2
 			Matrix C1 = F1_32.transpose() * F1_32;
@@ -90,12 +94,16 @@ EnergyTriangleStrain::EnergyTriangleStrain(Stark& stark, spPointDynamics dyn)
 			std::vector<Vector> v1 = mws.make_vectors(this->dyn->v1.data, triangle);
 			std::vector<Vector> x0 = mws.make_vectors(this->dyn->x0.data, triangle);
 			std::vector<Vector> X = mws.make_vectors(this->dyn->X.data, triangle);
+			Scalar rest_area_unscaled = mws.make_scalar(this->rest_area, conn["idx"]);
+			Vector DXinv_vec = mws.make_vector(this->inv_rest_jacobian, conn["idx"]);
 			Scalar scale = mws.make_scalar(this->scale, conn["group"]);
 			Scalar thickness = mws.make_scalar(this->thickness, conn["group"]);
 			Scalar e = mws.make_scalar(this->youngs_modulus, conn["group"]);
 			Scalar nu = mws.make_scalar(this->poissons_ratio, conn["group"]);
 			Scalar inflation = mws.make_scalar(this->inflation, conn["group"]);
 			Scalar dt = mws.make_scalar(stark.dt);
+			Scalar rest_area = scale * scale * rest_area_unscaled;
+
 
 			// Time integration
 			std::vector<Vector> x1 = time_integration(x0, v1, dt);
@@ -104,8 +112,7 @@ EnergyTriangleStrain::EnergyTriangleStrain(Stark& stark, spPointDynamics dyn)
 			std::vector<Vector> Xs = { scale * X[0], scale * X[1], scale * X[2] };
 
 			// Kinematics
-			Scalar rest_area = 0.5 * ((Xs[0] - Xs[2]).cross3(Xs[1] - Xs[2])).norm();
-			Matrix DXinv = triangle_jacobian(Xs).inv();
+			Matrix DXinv = Matrix(collect_scalars({DXinv_vec}), {2,2});
 			Matrix Dx1_32 = Matrix(collect_scalars({ x1[1] - x1[0], x1[2] - x1[0] }), { 2, 3 }).transpose();
 			Matrix F1_32 = Dx1_32 * DXinv;  // 3x2
 			Matrix C1 = F1_32.transpose() * F1_32;
@@ -129,6 +136,7 @@ EnergyTriangleStrain::EnergyTriangleStrain(Stark& stark, spPointDynamics dyn)
 		}
 	);
 }
+
 EnergyTriangleStrain::Handler EnergyTriangleStrain::add(const PointSetHandler& set, const std::vector<std::array<int, 3>>& triangles, const Params& params)
 {
 	set.exit_if_not_valid("EnergyTriangleStrain::add");
@@ -150,10 +158,63 @@ EnergyTriangleStrain::Handler EnergyTriangleStrain::add(const PointSetHandler& s
 		const std::array<int, 3>& conn_loc = triangles[tri_i];
 		const std::array<int, 3> conn_glob = set.get_global_indices(conn_loc);
 		conn->numbered_push_back({ group, conn_glob[0], conn_glob[1], conn_glob[2] });
+		rest_area.push_back(triangle_area(this->dyn->X[conn_glob[0]], this->dyn->X[conn_glob[1]], this->dyn->X[conn_glob[2]]));
+		std::array<double, 3> el = {
+			(this->dyn->X[conn_glob[0]] - this->dyn->X[conn_glob[1]]).norm(),
+			(this->dyn->X[conn_glob[1]] - this->dyn->X[conn_glob[2]]).norm(),
+			(this->dyn->X[conn_glob[2]] - this->dyn->X[conn_glob[0]]).norm()
+		};
+
+		double height = 2 * triangle_area(el) / el[0];
+		double new_p = std::sqrt(std::fmax(0.0, el[2] * el[2] - height * height));
+		new_p = el[2] * el[2] + el[0] * el[0] < el[1] * el[1] ? -new_p : new_p;
+		Eigen::Matrix2d DX;
+		DX.col(0) = params.scale * Eigen::Vector2d(el[0], 0.0);
+		DX.col(1) = params.scale * Eigen::Vector2d(new_p, height);
+		DX = DX.inverse().eval();
+		inv_rest_jacobian.emplace_back(DX(0, 0), DX(0, 1), DX(1, 0), DX(1, 1));
 	}
 
 	return Handler(this, group);
 }
+
+EnergyTriangleStrain::Handler EnergyTriangleStrain::add(const PointSetHandler& set, const std::vector<std::array<int, 3>>& triangles, const std::map<std::pair<int,int>, double>& stitched_vertices, const Params& params)
+{
+	set.exit_if_not_valid("EnergyTriangleStrain::add");
+	const int group = (int)this->youngs_modulus.size();
+
+	this->elasticity_only.push_back(params.elasticity_only);
+	this->scale.push_back(params.scale);
+	this->thickness.push_back(params.thickness);
+	this->youngs_modulus.push_back(params.youngs_modulus);
+	this->poissons_ratio.push_back(params.poissons_ratio);
+	this->strain_damping.push_back(params.damping);
+	this->strain_limit.push_back(params.strain_limit);
+	this->strain_limit_stiffness.push_back(params.strain_limit_stiffness);
+	this->inflation.push_back(params.inflation);
+
+	// Connectivity
+	LabelledConnectivity<5>* conn = params.elasticity_only == true ? &this->conn_elasticity_only : &this->conn_complete;
+	for (int tri_i = 0; tri_i < (int)triangles.size(); tri_i++) {
+		const std::array<int, 3>& conn_loc = triangles[tri_i];
+		const std::array<int, 3> conn_glob = set.get_global_indices(conn_loc);
+		std::array<double, 3> l = get_edge_lengths(conn_loc, stitched_vertices);
+		conn->numbered_push_back({ group, conn_glob[0], conn_glob[1], conn_glob[2] });
+		rest_area.push_back(triangle_area(l));
+
+		double height = 2 * triangle_area(l) / l[0];
+		double new_p = std::sqrt(std::fmax(0.0, l[2] * l[2] - height * height));
+		new_p = l[2] * l[2] + l[0] * l[0] < l[1] * l[1] ? -new_p : new_p;
+		Eigen::Matrix2d DX;
+		DX.col(0) = params.scale * Eigen::Vector2d(l[0], 0.0);
+		DX.col(1) = params.scale * Eigen::Vector2d(new_p, height);
+		DX = DX.inverse().eval();
+		inv_rest_jacobian.emplace_back(DX(0, 0), DX(0, 1), DX(1, 0), DX(1, 1));
+	}
+
+	return Handler(this, group);
+}
+
 EnergyTriangleStrain::Params EnergyTriangleStrain::get_params(const Handler& handler) const
 {
 	handler.exit_if_not_valid("EnergyTriangleStrain::get_params");

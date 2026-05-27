@@ -25,6 +25,9 @@ namespace tmcd
 		void add_blacklist_range_point_triangle(const int32_t point_mesh_id, const std::array<int32_t, 2>& loc_point_interval, const int32_t triangle_mesh_id, const std::array<int32_t, 2>& loc_triangle_interval);
 		void add_blacklist_range_edge_edge(const int32_t mesh_id_0, const std::array<int32_t, 2>& loc_interval_0, const int32_t mesh_id_1, const std::array<int32_t, 2>& loc_interval_1);
 		void add_blacklist(const int32_t mesh_id_0, const int32_t mesh_id_1);
+		void remove_blacklist_range_point_triangle(const int32_t point_mesh_id, const std::array<int32_t, 2>& loc_point_interval, const int32_t triangle_mesh_id, const std::array<int32_t, 2>& loc_triangle_interval);
+		void remove_blacklist_range_edge_edge(const int32_t mesh_id_0, const std::array<int32_t, 2>& loc_interval_0, const int32_t mesh_id_1, const std::array<int32_t, 2>& loc_interval_1);
+		void remove_blacklist(const int32_t mesh_id_0, const int32_t mesh_id_1);
 		void activate_point_triangle(const bool activate);
 		void activate_edge_edge(const bool activate);
 

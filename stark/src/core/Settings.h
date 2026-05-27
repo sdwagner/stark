@@ -26,6 +26,7 @@ namespace stark
 			Eigen::Vector3d gravity = { 0.0, 0.0, -9.81 };
 			bool init_frictional_contact = true;
 			double max_time_step_size = 1.0/30.0;
+			double initial_time_step_size = max_time_step_size;
 			bool use_adaptive_time_step = true;
 			double time_step_size_success_multiplier = 1.05;
 			double time_step_size_lower_bound = 1e-6;

@@ -11,6 +11,7 @@ namespace stark
 		/* Types */
 		struct Params 
 		{ 
+			STARK_PARAM_ELASTICITY_ONLY()
 			STARK_PARAM_SCALE()
 			STARK_PARAM_NO_VALIDATION(bool, flat_rest_angle, false)
 			STARK_PARAM_NON_NEGATIVE(double, stiffness, 1e-6)
@@ -22,9 +23,10 @@ namespace stark
 		/* Fields */
 		const spPointDynamics dyn;
 		symx::LabelledConnectivity<6> conn_complete{ {"idx", "group", "v_edge_0", "v_edge_1", "v_opp_0", "v_opp_1"} };
-		symx::LabelledConnectivity<6> conn_flat_rest{ {"idx", "group", "v_edge_0", "v_edge_1", "v_opp_0", "v_opp_1"} };
+		symx::LabelledConnectivity<6> conn_elasticity_only{ {"idx", "group", "v_edge_0", "v_edge_1", "v_opp_0", "v_opp_1"} };
 
 		// Input
+		std::vector<bool> elasticity_only;  // per group
 		std::vector<bool> flat_rest_angle;  // per group 
 		std::vector<double> scale;  // per group
 		std::vector<double> bending_stiffness;  // group
@@ -34,13 +36,12 @@ namespace stark
 		std::vector<double> rest_dihedral_angle_rad; // per hinge
 		std::vector<double> rest_edge_length; // per hinge
 		std::vector<double> rest_height; // per hinge
-		std::vector<Eigen::Vector4d> bergou_K; // per hinge
-		std::vector<double> bergou_coef; // per hinge
 
 	public:
 		/* Methods */
 		EnergyDiscreteShells(Stark& stark, spPointDynamics dyn);
 		Handler add(const PointSetHandler& set, const std::vector<std::array<int, 3>>& triangles, const Params& params);
+		Handler add(const PointSetHandler& set, const std::vector<std::array<int, 3>>& triangles, const std::map<std::pair<int,int>, double>& stitch_vertices, const Params& params);
 		Params get_params(const Handler& handler) const;
 		void set_params(const Handler& handler, const Params& params);
 	};

@@ -22,6 +22,7 @@ EnergyLumpedInertia::EnergyLumpedInertia(Stark& stark, const spPointDynamics dyn
 			Scalar volume = mws.make_scalar(this->lumped_volume, node["idx"]);
 			Scalar density = mws.make_scalar(this->density, node["group"]);
 			Scalar damping = mws.make_scalar(this->damping, node["group"]);
+			Scalar enable_inertia = mws.make_scalar(this->enable_gravity, node["group"]);
 			Scalar is_quasistatic = mws.make_scalar(this->is_quasistatic, node["group"]);
 			Scalar dt = mws.make_scalar(stark.dt);
 			Vector gravity = mws.make_vector(stark.gravity);
@@ -42,7 +43,7 @@ EnergyLumpedInertia::EnergyLumpedInertia(Stark& stark, const spPointDynamics dyn
 			Scalar E_inertia = 0.5 * mass * (dev.dot(dev) / (dt.powN(2)) + dev2.dot(dev2) * damping / dt);
 
 			// External force potential (always applied, including quasistatic)
-			Vector f_ext = mass * (a + gravity) + f;  // total external force
+			Vector f_ext = mass * (a + enable_inertia*gravity) + f;  // total external force
 			Scalar E_ext = -f_ext.dot(x1);
 
 			return E_ext + branch(is_quasistatic > 0.5, 0.0, E_inertia);
@@ -56,6 +57,7 @@ EnergyLumpedInertia::Handler EnergyLumpedInertia::add(const PointSetHandler& set
 	const int group = (int)this->density.size();
 	this->density.push_back(params.density);
 	this->damping.push_back(params.damping);
+	this->enable_gravity.push_back(params.enable_gravity);
 	if (params.quasistatic) {
 		this->is_quasistatic.push_back(1.0);
 	}
@@ -172,6 +174,8 @@ EnergyLumpedInertia::Params EnergyLumpedInertia::get_params(const Handler& handl
 	Params params;
 	params.density = this->density[group];
 	params.damping = this->damping[group];
+	params.quasistatic = this->is_quasistatic[group];
+	params.enable_gravity = this->enable_gravity[group];
 	return params;
 }
 void EnergyLumpedInertia::set_params(const Handler& handler, const Params& params)
@@ -180,6 +184,7 @@ void EnergyLumpedInertia::set_params(const Handler& handler, const Params& param
 	const int group = handler.get_idx();
 	this->density[group] = params.density;
 	this->damping[group] = params.damping;
+	this->enable_gravity[group] = params.enable_gravity;
 	this->is_quasistatic[group] = (double)params.quasistatic;
 }
 

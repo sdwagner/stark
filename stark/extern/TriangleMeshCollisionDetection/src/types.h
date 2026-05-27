@@ -83,6 +83,11 @@ namespace tmcd
 			Interval to;
 		};
 
+		inline bool operator==(const BlacklistInterval& lhs, const BlacklistInterval& rhs)
+		{
+			return lhs.from.begin == rhs.from.begin && lhs.from.end == rhs.from.end && lhs.to.begin == rhs.to.begin && lhs.to.end == rhs.to.end;
+		}
+
 		struct ThreadBuffer
 		{
 #ifdef TMCD_ENABLE_AVX2

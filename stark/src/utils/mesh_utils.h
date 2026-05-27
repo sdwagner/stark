@@ -9,6 +9,7 @@
 #include <vtkio>
 
 #define _USE_MATH_DEFINES
+#include <map>
 #include <math.h>
 
 #include "Mesh.h"
@@ -27,6 +28,7 @@ namespace stark
 
 	// Read/Write
 	std::vector<Mesh<3>> load_obj(const std::string& path);
+	std::vector<Mesh<4>> load_vol_obj(const std::string& path);
 	template<std::size_t N>
 	void load_vtk(std::vector<Eigen::Vector3d>& out_vertices, std::vector<std::array<int, N>>& out_conn, const std::string& path);
 	template<std::size_t N>
@@ -42,6 +44,11 @@ namespace stark
 	double unsigned_tetra_volume(const Eigen::Vector3d& p0, const Eigen::Vector3d& p1, const Eigen::Vector3d& p2, const Eigen::Vector3d& p3);
 	double signed_tetra_volume(const Eigen::Vector3d& p0, const Eigen::Vector3d& p1, const Eigen::Vector3d& p2, const Eigen::Vector3d& p3);
 
+	std::array<double, 3> get_edge_lengths(const std::array<int, 3>& indices, const std::map<std::pair<int, int>, double>& edge_lengths);
+	double triangle_area(const std::array<double, 3>& l);
+	std::array<double, 3> cotangents(const std::array<double, 3>& l);
+
+
 	// Topology
 	template<std::size_t N>
 	void reduce_connectivity(std::vector<std::array<int, N>>& out_new_conn, std::vector<int>& out_new_to_old_map, const std::vector<std::array<int, N>>& conn, const int n_nodes);
@@ -49,6 +56,8 @@ namespace stark
 	std::tuple<std::vector<std::array<int, N>>, std::vector<int>> reduce_connectivity(const std::vector<std::array<int, N>>& conn, const int n_nodes);
 	template<std::size_t N>
 	void find_edges_from_simplices(std::vector<std::array<int, 2>>& out_edges, const std::vector<std::array<int, N>>& simplices, const int n_nodes);
+	template<std::size_t N>
+	void find_edges_from_simplices(std::pair<int, int>& out_edges, const std::vector<std::array<int, N>>& simplices, const int n_nodes);
 	template<std::size_t N>
 	std::vector<std::array<int, 2>> find_edges_from_simplices(const std::vector<std::array<int, N>>& simplices, const int n_nodes);
 	void find_node_node_map_simplex(std::vector<std::vector<int>>& output, const int32_t* connectivity, const int32_t n_simplices, const int32_t n_nodes_per_simplex, const int32_t n_nodes);
@@ -160,7 +169,22 @@ namespace stark
 				}
 			}
 		}
-		std::sort(out_edges.begin(), out_edges.end(), [&](const std::array<int, 2>& a, const std::array<int, 2>& b) { return a[0] * n_nodes + a[1] < b[0] * n_nodes + b[1]; });
+		std::sort(out_edges.begin(), out_edges.end(), [&](const std::array<int, 2>& a, const std::array<int, 2>& b) { return a[0] < b[0] || (a[0] == b[0] && a[1] < b[1]); });
+		auto end_unique = std::unique(out_edges.begin(), out_edges.end());
+		out_edges.erase(end_unique, out_edges.end());
+	}
+	template<std::size_t N>
+	inline void find_edges_from_simplices(std::vector<std::pair<int, int>>& out_edges, const std::vector<std::array<int, N>>& simplices, const int n_nodes)
+	{
+		out_edges.reserve(N * simplices.size());
+		for (const std::array<int, N>& simplex : simplices) {
+			for (std::size_t i = 0; i < N; i++) {
+				for (std::size_t j = i + 1; j < N; j++) {
+					out_edges.push_back({ std::min(simplex[i], simplex[j]), std::max(simplex[i], simplex[j]) });
+				}
+			}
+		}
+		std::sort(out_edges.begin(), out_edges.end(), [&](const std::pair<int, int>& a, const std::pair<int, int>& b) { return a.first < b.first || (a.first == b.first && a.second < b.second); });
 		auto end_unique = std::unique(out_edges.begin(), out_edges.end());
 		out_edges.erase(end_unique, out_edges.end());
 	}

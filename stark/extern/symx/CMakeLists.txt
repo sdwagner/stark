@@ -213,7 +213,7 @@ endif()
 
 ## fmt — compiled library; used only inside .cpp files, not in public headers.
 # Parse the bundled fmt version once so we can print it in the status message.
-file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/extern/fmt/include/fmt/core.h"
+file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/extern/fmt/include/fmt/base.h"
     _fmt_ver_str REGEX "^#define FMT_VERSION ")
 if(_fmt_ver_str MATCHES "FMT_VERSION ([0-9]+)")
     math(EXPR _fmaj "${CMAKE_MATCH_1} / 10000")
@@ -229,7 +229,7 @@ endif()
 if(TARGET fmt::fmt)
     message(STATUS "SymX: fmt — using pre-existing fmt::fmt target")
 else()
-    find_package(fmt QUIET)
+    find_package(fmt 10 QUIET)
     if(fmt_FOUND)
         message(STATUS "SymX: fmt — found system installation (v${fmt_VERSION})")
     else()
@@ -239,7 +239,7 @@ else()
     endif()
 endif()
 
-target_link_libraries(symx PRIVATE fmt::fmt)
+target_link_libraries(symx PUBLIC fmt::fmt)
 if(SYMX_FMT_PUBLIC)
     target_include_directories(symx SYSTEM PUBLIC
         $<TARGET_PROPERTY:fmt::fmt,INTERFACE_INCLUDE_DIRECTORIES>)

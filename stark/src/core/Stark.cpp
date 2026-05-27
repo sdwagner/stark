@@ -65,7 +65,7 @@ Stark::Stark(const Settings& settings)
 	this->callbacks = Callbacks::create(this->context);
 
 	// Set simulation parameters
-	this->dt = this->settings.simulation.max_time_step_size;
+	this->dt = this->settings.simulation.initial_time_step_size;
 	this->gravity = this->settings.simulation.gravity;
 
 	// Create global potential
@@ -244,8 +244,20 @@ bool Stark::run_one_step()
 }
 std::string Stark::get_frame_path(std::string name) const
 {
-	return this->settings.output.output_directory + "/" + this->settings.output.simulation_name + "_" + name + "_" + std::to_string(this->current_frame);
+
+	return get_path(name) + "_" + std::to_string(this->current_frame);
 }
+std::string Stark::get_path(std::string name) const
+{
+		return this->settings.output.output_directory + "/" + this->settings.output.simulation_name + "_" + name;
+		return get_path() + "_" + name;
+}
+
+std::string Stark::get_path() const
+{
+	return this->settings.output.output_directory + "/" + this->settings.output.simulation_name;
+}
+
 void Stark::print()
 {
 	this->context->output->print_new_line(Verbosity::Minimal);

@@ -30,9 +30,13 @@ namespace stark
 		std::vector<double> scale;  // per group
 		std::vector<double> youngs_modulus;  // per group
 		std::vector<double> poissons_ratio;  // per group
+		std::vector<double> lambda_;  // per group
+		std::vector<double> mu_;  // per group
 		std::vector<double> strain_damping;  // per group
 		std::vector<double> strain_limit;  // per group
 		std::vector<double> strain_limit_stiffness;  // per group
+		std::vector<double> rest_volume;
+		std::vector<Eigen::Matrix<double, 9, 1>> inv_rest_jacobian;
 
 	public:
 		/* Methods */

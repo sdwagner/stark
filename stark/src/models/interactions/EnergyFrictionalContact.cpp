@@ -26,6 +26,7 @@ EnergyFrictionalContact::EnergyFrictionalContact(Stark& stark, const spPointDyna
 	stark.callbacks->newton->add_on_intermediate_state_invalid([&]() { this->_on_intermediate_state_invalid(stark); });
 	stark.callbacks->add_on_time_step_accepted([&]() { this->_on_time_step_accepted(stark); });
 	stark.callbacks->add_should_continue_execution([&]() { return this->_should_continue_execution(stark); });
+	stark.callbacks->add_is_current_collision_state_valid([&]() {return this->_is_state_valid(stark);});
 
 	// Contact
 	this->_energies_contact_deformables(stark);
@@ -117,6 +118,28 @@ void EnergyFrictionalContact::disable_collision(const Handler& obj0, const Handl
 		this->id.add_blacklist(pair[0], pair[1]);
 	}
 }
+
+void EnergyFrictionalContact::enable_collision(const Handler& obj0, const Handler& obj1)
+{
+	obj0.exit_if_not_valid("EnergyFrictionalContact::enable_collision");
+	obj1.exit_if_not_valid("EnergyFrictionalContact::enable_collision");
+
+	const std::array<int, 2> pair = this->_get_pair_key(obj0, obj1);
+	if (this->disabled_collision_pairs.find(pair) != this->disabled_collision_pairs.end()) {
+		this->disabled_collision_pairs.erase(pair);
+		this->pd.remove_blacklist(pair[0], pair[1]);
+		this->id.remove_blacklist(pair[0], pair[1]);
+	}
+}
+
+bool EnergyFrictionalContact::is_collision_enabled(const Handler& obj0, const Handler& obj1)
+{
+	obj0.exit_if_not_valid("EnergyFrictionalContact::is_collision_enabled");
+	obj1.exit_if_not_valid("EnergyFrictionalContact::is_collision_enabled");
+	const std::array<int, 2> pair = this->_get_pair_key(obj0, obj1);
+	return !this->disabled_collision_pairs.contains(pair);
+}
+
 bool EnergyFrictionalContact::is_empty() const
 {
 	return this->meshes.empty();
@@ -797,6 +820,17 @@ bool EnergyFrictionalContact::_is_intermediate_state_valid(Stark& stark, bool is
 
 	return !collision_found;
 }
+bool EnergyFrictionalContact::_is_state_valid(Stark& stark)
+{
+	if (!this->global_params.collisions_enabled) { return true; }
+	if (!this->global_params.intersection_test_enabled) { return true; }
+	if (this->is_empty()) { return true; }
+
+	const auto& intersections = this->_run_intersection_detection(stark, 0.0);
+
+	return intersections.edge_triangle.empty();
+}
+
 void EnergyFrictionalContact::_on_intermediate_state_invalid(Stark& stark)
 {
 	const double old_stiffness = this->contact_stiffness;

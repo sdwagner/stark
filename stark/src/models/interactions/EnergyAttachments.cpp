@@ -85,6 +85,31 @@ EnergyAttachments::EnergyAttachments(Stark& stark, const spPointDynamics dyn, co
 		}
 	);
 
+	stark.global_potential->add_potential("EnergyAttachments_d_d_p_tet", this->conn_d_d_p_tet,
+		[&](MappedWorkspace<double>& mws, Element& conn)
+		{
+			auto nodes = { conn["p"], conn["tet0"], conn["tet1"], conn["tet2"], conn["tet3"] };
+
+			// Create symbols
+			std::vector<Vector> v1 = mws.make_vectors(this->dyn->v1.data, nodes);
+			std::vector<Vector> x0 = mws.make_vectors(this->dyn->x0.data, nodes);
+			Vector bary = mws.make_vector(this->bary_p_tet, conn["idx"]);
+			Scalar k = mws.make_scalar(this->stiffness_d_d_p_tet, conn["group"]);
+			Scalar dt = mws.make_scalar(stark.dt);
+
+			// Time integration
+			std::vector<Vector> x1 = time_integration(x0, v1, dt);
+
+			// Projection
+			Vector p = x1[0];
+			Vector q = bary[0] * x1[1] + bary[1] * x1[2] + bary[2] * x1[3] + bary[3] * x1[4];
+
+			// Energy
+			Scalar E = 0.5 * k * (q - p).squared_norm();
+			return E;
+		}
+	);
+
 	stark.global_potential->add_potential("EnergyAttachments_d_d_e_e", this->conn_d_d_e_e,
 		[&](MappedWorkspace<double>& mws, Element& conn)
 		{
@@ -201,6 +226,29 @@ EnergyAttachments::Handler EnergyAttachments::add(const PointSetHandler& set_0, 
 
 	const int handler_idx = (int)this->handlers_map.size();
 	this->handlers_map.push_back({ AttachmentType::Deformable_Deformable_Point_Triangle, group });
+	return Handler(this, handler_idx);
+}
+EnergyAttachments::Handler EnergyAttachments::add(const PointSetHandler& set_0, const PointSetHandler& set_1, const std::vector<int>& points, const std::vector<std::array<int, 4>>& tets, const std::vector<std::array<double, 4>>& bary, const Params& params)
+{
+	set_0.exit_if_not_valid("EnergyAttachments::add");
+	set_1.exit_if_not_valid("EnergyAttachments::add");
+
+	const int n = (int)points.size();
+	if (tets.size() != n || bary.size() != n) {
+		std::cout << "Stark error: EnergyAttachments::add() found an invalid input sizes." << std::endl;
+		exit(-1);
+	}
+
+	const int group = (int)this->stiffness_d_d_p_tet.size();
+	this->stiffness_d_d_p_tet.push_back(params.stiffness);
+	this->tolerance_d_d_p_tet.push_back(params.tolerance);
+	for (int i = 0; i < (int)tets.size(); i++) {
+		this->conn_d_d_p_tet.numbered_push_back({ group, set_0.get_global_index(points[i]), set_1.get_global_index(tets[i][0]), set_1.get_global_index(tets[i][1]), set_1.get_global_index(tets[i][2]), set_1.get_global_index(tets[i][3]) });
+		this->bary_p_tet.push_back({ bary[i][0], bary[i][1], bary[i][2], bary[i][3] });
+	}
+
+	const int handler_idx = (int)this->handlers_map.size();
+	this->handlers_map.push_back({ AttachmentType::Deformable_Deformable_Point_Tetrahedron, group });
 	return Handler(this, handler_idx);
 }
 EnergyAttachments::Handler EnergyAttachments::add(const PointSetHandler& set_0, const PointSetHandler& set_1, const std::vector<std::array<int, 2>>& edges_0, const std::vector<std::array<int, 2>>& edges_1, const std::vector<std::array<double, 2>>& bary_0, const std::vector<std::array<double, 2>>& bary_1, const Params& params)
@@ -373,6 +421,8 @@ EnergyAttachments::Params EnergyAttachments::get_params(const Handler& handler) 
 		return Params().set_stiffness(this->stiffness_d_d_p_e[group]).set_tolerance(this->tolerance_d_d_p_e[group]);
 	case AttachmentType::Deformable_Deformable_Point_Triangle:
 		return Params().set_stiffness(this->stiffness_d_d_p_t[group]).set_tolerance(this->tolerance_d_d_p_t[group]);
+	case AttachmentType::Deformable_Deformable_Point_Tetrahedron:
+		return Params().set_stiffness(this->stiffness_d_d_p_tet[group]).set_tolerance(this->tolerance_d_d_p_tet[group]);
 	case AttachmentType::Deformable_Deformable_Edge_Edge:
 		return Params().set_stiffness(this->stiffness_d_d_e_e[group]).set_tolerance(this->tolerance_d_d_e_e[group]);
 	case AttachmentType::Rigid_Deformable:
@@ -401,6 +451,10 @@ void EnergyAttachments::set_params(const Handler& handler, const Params& params)
 	case AttachmentType::Deformable_Deformable_Point_Triangle:
 		this->stiffness_d_d_p_t[group] = params.stiffness;
 		this->tolerance_d_d_p_t[group] = params.tolerance;
+		break;
+	case AttachmentType::Deformable_Deformable_Point_Tetrahedron:
+		this->stiffness_d_d_p_tet[group] = params.stiffness;
+		this->tolerance_d_d_p_tet[group] = params.tolerance;
 		break;
 	case AttachmentType::Deformable_Deformable_Edge_Edge:
 		this->stiffness_d_d_e_e[group] = params.stiffness;

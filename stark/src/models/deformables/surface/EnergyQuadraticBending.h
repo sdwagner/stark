@@ -1,0 +1,38 @@
+#pragma once
+#include "../../../core/Stark.h"
+#include "../PointDynamics.h"
+#include "../../types.h"
+
+namespace stark
+{
+    class EnergyQuadraticBending
+    {
+    public:
+        /* Types */
+        struct Params
+        {
+            STARK_PARAM_ELASTICITY_ONLY()
+            STARK_PARAM_NON_NEGATIVE(double, stiffness, 1e-6)
+        };
+        struct Handler { STARK_COMMON_HANDLER_CONTENTS(EnergyQuadraticBending, Params) };
+
+    private:
+        /* Fields */
+        const spPointDynamics dyn;
+        symx::LabelledConnectivity<6> conn_complete{ {"idx", "group", "v_edge_0", "v_edge_1", "v_opp_0", "v_opp_1"} };
+        symx::LabelledConnectivity<6> conn_elasticity_only{ {"idx", "group", "v_edge_0", "v_edge_1", "v_opp_0", "v_opp_1"} };
+
+        // Input
+        std::vector<bool> elasticity_only;  // per group
+        std::vector<double> bending_stiffness;  // group
+		std::vector<Eigen::Vector4d> cotangent_weights;
+
+    public:
+        /* Methods */
+        EnergyQuadraticBending(Stark& stark, spPointDynamics dyn);
+        Handler add(const PointSetHandler& set, const std::vector<std::array<int, 3>>& triangles, const Params& params);
+        Handler add(const PointSetHandler& set, const std::vector<std::array<int, 3>>& triangles, const std::map<std::pair<int,int>, double>& stitch_vertices, const Params& params);
+        Params get_params(const Handler& handler) const;
+        void set_params(const Handler& handler, const Params& params);
+    };
+}

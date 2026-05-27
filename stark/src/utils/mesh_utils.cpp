@@ -37,6 +37,93 @@ double rad2deg(const double rad)
 	return rad * 180.0 / M_PI;
 }
 
+std::vector<stark::Mesh<4>> stark::load_vol_obj(const std::string& path)
+{
+    std::vector<stark::Mesh<4>> tri_meshes;
+
+    // Initialise tinyobjloader objects and read the file
+    tinyobj::attrib_t attrib;
+    std::vector<tinyobj::shape_t> shapes;
+    std::vector<tinyobj::material_t> materials;
+    std::string warn;
+    std::string err;
+    bool ret = tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, path.c_str(), 0, false);
+
+    // Input checking
+    if (!warn.empty()) {
+        std::cout << warn << std::endl;
+    }
+
+    if (!err.empty()) {
+        std::cerr << err << std::endl;
+    }
+
+    if (!ret) {
+        exit(1);
+    }
+
+    // Global information
+    const int total_n_vertices = (int)attrib.vertices.size() / 3;
+
+    // Write the geometric information into individual triangular meshes
+    // Loop over meshes
+    for (int shape_i = 0; shape_i < shapes.size(); shape_i++) {
+
+        // Initialize individual triangular mesh
+        Mesh<4> tri_mesh;
+        tri_mesh.conn.reserve(shapes[shape_i].mesh.num_face_vertices.size());
+        std::vector<bool> global_nodes_present(total_n_vertices, false);
+
+        // Loop over triangles
+        int index_offset = 0;
+        for (int tri_i = 0; tri_i < shapes[shape_i].mesh.num_face_vertices.size(); tri_i++) {
+            if (shapes[shape_i].mesh.num_face_vertices[tri_i] != 4) {
+            	std::cout << "learnSPH error: readTriMeshesFromObj can only read tet meshes: " << (int)shapes[shape_i].mesh.num_face_vertices[tri_i] << " vertices." << std::endl;
+            	throw std::runtime_error("learnSPH error: readTriMeshesFromObj can only read tet meshes.");
+            }
+
+            // Gather triangle global indices
+            std::array<int, 4> triangle_global_indices;
+            for (int vertex_i = 0; vertex_i < 4; vertex_i++) {
+                tinyobj::index_t idx = shapes[shape_i].mesh.indices[(int)(4 * tri_i + vertex_i)];
+                const int global_vertex_index = idx.vertex_index;
+                triangle_global_indices[vertex_i] = global_vertex_index;
+                global_nodes_present[global_vertex_index] = true;
+            }
+            tri_mesh.conn.push_back(triangle_global_indices);
+        }
+
+        // Reduce global indexes to local indexes
+        std::vector<int> global_to_local_vertex_idx(total_n_vertices, -1);
+        int local_vertices_count = 0;
+        for (int global_vertex_i = 0; global_vertex_i < total_n_vertices; global_vertex_i++) {
+            if (global_nodes_present[global_vertex_i]) {
+                // Map global -> local
+                global_to_local_vertex_idx[global_vertex_i] = local_vertices_count;
+                local_vertices_count++;
+
+                // Add vertex to the local mesh vertex vector
+                tinyobj::real_t vx = attrib.vertices[(int)(3 * global_vertex_i + 0)];
+                tinyobj::real_t vy = attrib.vertices[(int)(3 * global_vertex_i + 1)];
+                tinyobj::real_t vz = attrib.vertices[(int)(3 * global_vertex_i + 2)];
+                tri_mesh.vertices.emplace_back( vx, vy, vz );
+            }
+        }
+
+        // Change triangle indices
+        for (int tri_i = 0; tri_i < tri_mesh.conn.size(); tri_i++) {
+            for (int vertex_i = 0; vertex_i < 4; vertex_i++) {
+                tri_mesh.conn[tri_i][vertex_i] = global_to_local_vertex_idx[tri_mesh.conn[tri_i][vertex_i]];
+            }
+        }
+
+        tri_meshes.push_back(tri_mesh);
+    }
+
+	return tri_meshes;
+}
+
+
 std::vector<Mesh<3>> load_obj(const std::string& path)
 {
     std::vector<Mesh<3>> tri_meshes;
@@ -71,7 +158,7 @@ std::vector<Mesh<3>> load_obj(const std::string& path)
 
         // Initialize individual triangular mesh
         Mesh<3> tri_mesh;
-        tri_mesh.conn.resize(shapes[shape_i].mesh.num_face_vertices.size());
+        tri_mesh.conn.reserve(shapes[shape_i].mesh.num_face_vertices.size());
         std::vector<bool> global_nodes_present(total_n_vertices, false);
 
         // Loop over triangles
@@ -318,7 +405,7 @@ void find_surface(std::vector<std::array<int, 3>>& out_triangles, std::vector<in
 		// Face winding to point outwards from the tet
 		const std::array<int, 4>& tet = tets[it.second];
 		const Eigen::Vector3d center = (vertices[tet[0]] + vertices[tet[1]] + vertices[tet[2]] + vertices[tet[3]]) / 4.0;
-		if (is_outward_facing(vertices[face[0]], vertices[face[1]], vertices[face[2]], center)) {
+		if (!is_outward_facing(vertices[face[0]], vertices[face[1]], vertices[face[2]], center)) {
 			std::swap(face[0], face[1]);
 		}
 
@@ -542,5 +629,41 @@ Eigen::Vector3d rotate_deg(const Eigen::Vector3d& point, const Eigen::Matrix3d& 
 	const Eigen::Vector3d p_shifted_rotated = R*p_shifted;
 	const Eigen::Vector3d p_rotated = p_shifted_rotated + pivot;
 	return p_rotated;
+}
+
+std::array<double, 3> get_edge_lengths(const std::array<int, 3>& indices, const std::map<std::pair<int, int>, double>& edge_lengths)
+{
+	std::array<double, 3> edge_lengths_array{};
+	for (int i = 0; i < 3; i++) {
+		int min_idx = std::min(indices[i], indices[(i + 1) % 3]);
+		int max_idx = std::max(indices[i], indices[(i + 1) % 3]);
+		std::pair<int, int> edge = { min_idx, max_idx };
+		edge_lengths_array[i] = edge_lengths.at(edge);
+	}
+	return edge_lengths_array;
+}
+
+	double triangle_area(const std::array<double, 3>& l)
+{
+	const double arg = (l[0] + (l[1] + l[2])) * (l[2] - (l[0] - l[1])) *
+					   (l[2] + (l[0] - l[1])) * (l[0] + (l[1] - l[2]));
+	return 0.25 * sqrt(arg);
+}
+
+	std::array<double, 3> cotangents(const std::array<double, 3>& l)
+{
+	std::array<double, 3> cotangent_weights_array{}, l2{};
+	const double A = 2*triangle_area(l);
+
+	l2[0] = l[0] * l[0];
+	l2[1] = l[1] * l[1];
+	l2[2] = l[2] * l[2];
+
+	cotangent_weights_array[0] = (l2[0] + l2[2] - l2[1]) / A;
+	cotangent_weights_array[1] = (l2[0] + l2[1] - l2[2]) / A;
+	cotangent_weights_array[2] = (l2[1] + l2[2] - l2[0]) / A;
+
+	return cotangent_weights_array;
+
 }
 } // namespace stark

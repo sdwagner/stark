@@ -39,6 +39,29 @@ void tmcd::internals::BroadPhasePTEEBase::add_blacklist_range_edge_edge(const in
 		exit(-1);
 	}
 }
+void tmcd::internals::BroadPhasePTEEBase::remove_blacklist_range_point_triangle(const int32_t point_mesh_id, const std::array<int32_t, 2>& point_interval, const int32_t triangle_mesh_id, const std::array<int32_t, 2>& triangle_interval)
+{
+	BlacklistInterval bl;
+	bl.from.begin = triangle_interval[0] + this->meshes.triangles_offsets[triangle_mesh_id];
+	bl.from.end = triangle_interval[1] + this->meshes.triangles_offsets[triangle_mesh_id];
+	bl.to.begin = point_interval[0] + this->meshes.points_offsets[point_mesh_id];
+	bl.to.end = point_interval[1] + this->meshes.points_offsets[point_mesh_id];
+	std::erase(this->blacklist_triangle_point, bl);
+}
+void tmcd::internals::BroadPhasePTEEBase::remove_blacklist_range_edge_edge(const int32_t mesh_id_0, const std::array<int32_t, 2>& interval_0, const int32_t mesh_id_1, const std::array<int32_t, 2>& interval_1)
+{
+	BlacklistInterval bl;
+	bl.from.begin = interval_0[0] + this->meshes.edges_offsets[mesh_id_0];
+	bl.from.end = interval_0[1] + this->meshes.edges_offsets[mesh_id_0];
+	bl.to.begin = interval_1[0] + this->meshes.edges_offsets[mesh_id_1];
+	bl.to.end = interval_1[1] + this->meshes.edges_offsets[mesh_id_1];
+	std::erase(this->blacklist_edge_edge, bl);
+
+	if (bl.from.begin > bl.to.begin) {
+		std::cout << "TriangleMeshCollisionDetection.remove_blacklist_range_edge_edge() error: first edge interval should be lower index than the second one." << std::endl;
+		exit(-1);
+	}
+}
 void tmcd::internals::BroadPhasePTEEBase::activate_point_triangle(const bool activate)
 {
 	this->is_point_triangle_active = activate;

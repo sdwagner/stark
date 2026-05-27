@@ -2,6 +2,7 @@
 #include <limits>
 #include <string>
 #include <iostream>
+#include <map>
 
 namespace stark
 {

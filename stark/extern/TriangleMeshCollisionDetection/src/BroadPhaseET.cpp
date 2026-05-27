@@ -28,6 +28,15 @@ void tmcd::BroadPhaseET::add_blacklist_range_edge_triangle(const int32_t edge_me
 	bl.to.end = edge_interval[1] + this->meshes.edges_offsets[edge_mesh_id];
 	this->blacklist_triangle_edge.push_back(bl);
 }
+void tmcd::BroadPhaseET::remove_blacklist_range_edge_triangle(const int32_t edge_mesh_id, const std::array<int32_t, 2>& edge_interval, const int32_t triangle_mesh_id, const std::array<int32_t, 2>& triangle_interval)
+{
+	BlacklistInterval bl;
+	bl.from.begin = triangle_interval[0] + this->meshes.triangles_offsets[triangle_mesh_id];
+	bl.from.end = triangle_interval[1] + this->meshes.triangles_offsets[triangle_mesh_id];
+	bl.to.begin = edge_interval[0] + this->meshes.edges_offsets[edge_mesh_id];
+	bl.to.end = edge_interval[1] + this->meshes.edges_offsets[edge_mesh_id];
+	std::erase(this->blacklist_triangle_edge, bl);
+}
 
 const BroadPhaseETResults& tmcd::BroadPhaseET::run(const BroadPhaseStrategy strat)
 {

@@ -25,6 +25,7 @@ namespace stark
 		Handler add(const PointSetHandler& set_0, const PointSetHandler& set_1, const std::vector<int>& points, const std::vector<std::array<int, 2>>& edges, const std::vector<std::array<double, 2>>& bary, const Params& params);
 		Handler add(const PointSetHandler& set_0, const PointSetHandler& set_1, const std::vector<int>& points, const std::vector<std::array<int, 3>>& triangles, const std::vector<std::array<double, 3>>& bary, const Params& params);
 		Handler add(const PointSetHandler& set_0, const PointSetHandler& set_1, const std::vector<std::array<int, 2>>& edges_0, const std::vector<std::array<int, 2>>& edges_1, const std::vector<std::array<double, 2>>& bary_0, const std::vector<std::array<double, 2>>& bary_1, const Params& params);
+		Handler add(const PointSetHandler& set_0, const PointSetHandler& set_1, const std::vector<int>& points, const std::vector<std::array<int, 4>>& tets, const std::vector<std::array<double, 4>>& bary, const Params& params);
 		MultiHandler add_by_distance(const PointSetHandler& set_0, const PointSetHandler& set_1, const std::vector<int>& points, const std::vector<std::array<int, 3>>& triangles, const double distance, const Params& params);
 		
 		Handler add(const RigidBodyHandler& rb, const PointSetHandler& set, const std::vector<Eigen::Vector3d>& rb_points_loc, const std::vector<int>& set_points, const Params& params);
@@ -39,6 +40,7 @@ namespace stark
 			Deformable_Deformable_Point_Point,
 			Deformable_Deformable_Point_Edge,
 			Deformable_Deformable_Point_Triangle,
+			Deformable_Deformable_Point_Tetrahedron,
 			Deformable_Deformable_Edge_Edge,
 			Rigid_Deformable
 		};
@@ -64,6 +66,12 @@ namespace stark
 		std::vector<std::array<double, 3>> bary_p_t;  // per index
 		std::vector<double> stiffness_d_d_p_t;  // per group
 		std::vector<double> tolerance_d_d_p_t;  // per group
+
+		//// Point - Tetrahedron
+		symx::LabelledConnectivity<7> conn_d_d_p_tet{ {"idx", "group", "p", "tet0", "tet1", "tet2", "tet3"} };
+		std::vector<std::array<double, 4>> bary_p_tet;  // per index
+		std::vector<double> stiffness_d_d_p_tet;  // per group
+		std::vector<double> tolerance_d_d_p_tet;  // per group
 
 		//// Edge - Edge
 		symx::LabelledConnectivity<6> conn_d_d_e_e{ {"idx", "group", "ea0", "ea1", "eb0", "eb1"} };

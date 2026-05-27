@@ -13,7 +13,7 @@ namespace stark
 	{
 	public:
 		/* Fields */
-		const Settings settings;
+		Settings settings;
 		symx::spGlobalPotential global_potential;
 		symx::spContext context;
 		spCallbacks callbacks;
@@ -31,6 +31,8 @@ namespace stark
 		bool run_one_step();
 		bool run(double duration, std::function<void()> callback = nullptr);
 		std::string get_frame_path(std::string name) const;
+		std::string get_path(std::string name) const;
+		std::string get_path() const;
 		void print();
 
 	private:

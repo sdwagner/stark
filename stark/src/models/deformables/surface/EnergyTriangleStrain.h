@@ -38,11 +38,14 @@ namespace stark
 		std::vector<double> strain_limit;  // per group
 		std::vector<double> strain_limit_stiffness;  // per group
 		std::vector<double> inflation;  // per group
+		std::vector<double> rest_area;
+		std::vector<Eigen::Vector4d> inv_rest_jacobian;
 		
 	public:
 		/* Methods */
 		EnergyTriangleStrain(Stark& stark, spPointDynamics dyn);
 		Handler add(const PointSetHandler& set, const std::vector<std::array<int, 3>>& triangles, const Params& params);
+		Handler add(const PointSetHandler& set, const std::vector<std::array<int, 3>>& triangles, const std::map<std::pair<int,int>, double>& stitched_vertices, const Params& params);
 		Params get_params(const Handler& handler) const;
 		void set_params(const Handler& handler, const Params& params);
 	};
