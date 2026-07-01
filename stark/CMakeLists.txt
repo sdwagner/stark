@@ -202,7 +202,7 @@ target_include_directories(stark PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/extern/vtkio
 
 set(OPENUSD_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../OpenUSD/install")
 list(APPEND CMAKE_PREFIX_PATH "${OPENUSD_ROOT}")
-find_package(PXR REQUIRED COMPONENTS usd usdGeom)
+find_package(pxr REQUIRED COMPONENTS usd usdGeom)
 target_link_libraries(stark usd usdGeom)
 target_include_directories(stark PRIVATE "${OPENUSD_ROOT}/include")
 
