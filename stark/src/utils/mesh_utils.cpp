@@ -37,7 +37,7 @@ double rad2deg(const double rad)
 	return rad * 180.0 / M_PI;
 }
 
-std::vector<stark::Mesh<4>> stark::load_vol_obj(const std::string& path)
+std::vector<stark::Mesh<4>> load_vol_obj(const std::string& path)
 {
     std::vector<stark::Mesh<4>> tri_meshes;
 
