@@ -30,7 +30,7 @@ namespace symx
         std::vector<std::function<void()>>     on_armijo_fail;
         std::vector<std::function<bool()>>     is_converged;
         std::vector<std::function<bool()>>     is_converged_state_valid;
-        std::vector<std::function<double()>>   max_allowed_step;
+        std::vector<std::function<double(const Eigen::VectorXd&, const Eigen::VectorXd&)>> max_allowed_step;
         std::function<double(const Eigen::VectorXd&)> residual = default_residual;
         spContext context = nullptr;
 
@@ -74,7 +74,7 @@ namespace symx
         void add_on_armijo_fail(std::function<void()> f) { this->on_armijo_fail.push_back(f); }
         void add_is_converged(std::function<bool()> f) { this->is_converged.push_back(f); }
         void add_is_converged_state_valid(std::function<bool()> f) { this->is_converged_state_valid.push_back(f); }
-        void add_max_allowed_step(std::function<double()> f) { this->max_allowed_step.push_back(f); }
+        void add_max_allowed_step(std::function<double(const Eigen::VectorXd&, const Eigen::VectorXd&)> f) { this->max_allowed_step.push_back(f); }
 
         // ---- Invoke callbacks (called by the solver) ----
 
@@ -127,12 +127,12 @@ namespace symx
             auto _t = this->context->logger->time("is_converged_state_valid");
             return this->_run_bool(true, this->is_converged_state_valid);
         }
-        double run_max_allowed_step()
+        double run_max_allowed_step(const Eigen::VectorXd& x, const Eigen::VectorXd& du)
         {
             auto _t = this->context->logger->time("max_allowed_step");
             double max_step = 1.0;
-            for (auto f : this->max_allowed_step) {
-                max_step = std::min(max_step, f());
+            for (auto& f : this->max_allowed_step) {
+                max_step = std::min(max_step, f(x, du));
             }
             return max_step;
         }

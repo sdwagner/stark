@@ -6,5 +6,5 @@ Interactions::Interactions(Stark& stark, spPointDynamics dyn, spRigidBodyDynamic
 	: dyn(dyn), rb(rb)
 {
 	this->attachments = std::make_shared<EnergyAttachments>(stark, dyn, rb);
-	this->contact = std::make_shared<EnergyFrictionalContact>(stark, dyn, rb);
+	this->contact = std::make_shared<ContactEnergy>(stark, dyn, rb);
 }

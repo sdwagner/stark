@@ -40,12 +40,25 @@ elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
 	add_compile_options("-march=native")
 endif()
 
+# ---- IPC-Toolkit (optional replacement for tmcd at runtime) ------------------
+option(STARK_IPC_TOOLKIT_CONTACT
+    "Use ipc-toolkit for broad-phase, intersection detection and CCD (replaces tmcd at runtime)"
+    OFF)
+
 # Dependencies
 set(SYMX_EIGEN_PUBLIC ON)
 set(SYMX_FMT_PUBLIC   ON)
 set(SYMX_HESS_STORAGE_FLOAT "double" CACHE STRING "Storage type for Hessian matrices (float or double)" FORCE)
 add_subdirectory(extern/symx)
 add_subdirectory(extern/TriangleMeshCollisionDetection)
+
+set(OPENUSD_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../OpenUSD/install")
+list(APPEND CMAKE_PREFIX_PATH "${OPENUSD_ROOT}")
+find_package(pxr REQUIRED COMPONENTS usd usdGeom)
+
+if(STARK_IPC_TOOLKIT_CONTACT)
+    add_subdirectory(extern/ipc-toolkit)
+endif()
 
 # Source files
 set(CORE_FILES
@@ -129,6 +142,12 @@ set(MODELS_INTERACTIONS_FILES
 	src/models/interactions/Interactions.cpp
 	src/models/interactions/Interactions.h
 )
+if(STARK_IPC_TOOLKIT_CONTACT)
+    list(APPEND MODELS_INTERACTIONS_FILES
+        src/models/interactions/EnergyFrictionalContactIPC.cpp
+        src/models/interactions/EnergyFrictionalContactIPC.h
+    )
+endif()
 
 set(MODELS_PRESETS_FILES
 	src/models/presets/Presets.cpp
@@ -200,14 +219,18 @@ target_include_directories(stark PUBLIC extern/TriangleMeshCollisionDetection/in
 ## vtkio
 target_include_directories(stark PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/extern/vtkio/include)
 
-set(OPENUSD_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../OpenUSD/install")
-list(APPEND CMAKE_PREFIX_PATH "${OPENUSD_ROOT}")
-find_package(pxr REQUIRED COMPONENTS usd usdGeom)
 target_link_libraries(stark usd usdGeom)
 target_include_directories(stark PRIVATE "${OPENUSD_ROOT}/include")
 
 ## TriangleMeshDistance
 target_include_directories(stark PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/extern/TriangleMeshDistance/include)
+
+## IPC-Toolkit (optional)
+if(STARK_IPC_TOOLKIT_CONTACT)
+    target_link_libraries(stark ipc::toolkit)
+    target_compile_definitions(stark PUBLIC STARK_USE_IPC_TOOLKIT)
+    message(STATUS "Stark: IPC-Toolkit contact back-end ENABLED")
+endif()
 
 ## fmt (provided by symx transitively)
 ## Eigen (provided by symx transitively)

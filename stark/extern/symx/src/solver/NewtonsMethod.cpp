@@ -501,7 +501,7 @@ SolverReturn NewtonsMethod::_line_search_inplace(double E0, double du_dot_grad, 
     }
     
     /* ------------------------------------ Max ----------------------------------- */
-    double max_step = this->callbacks->run_max_allowed_step();
+    double max_step = this->callbacks->run_max_allowed_step(this->dofs_before_ls, this->du);
     if (max_step < 1.0) {
         retraction *= max_step;
         this->du *= max_step;
@@ -512,6 +512,12 @@ SolverReturn NewtonsMethod::_line_search_inplace(double E0, double du_dot_grad, 
     }
     else {
         logger->add_and_append("ls_max", 0);
+    }
+    // Exit: CCD step size too small (TODO: make this parameter)
+    if (max_step < 1e-5) {
+        this->output->print_with_new_line("Newton failure: Too many invalid intermediate state iterations.", Verbosity::Medium);
+        this->callbacks->run_on_intermediate_state_invalid();
+        return SolverReturn::TooManyInvalidIntermediateIterations;
     }
     
     /* ================================ Backtracking =============================== */
