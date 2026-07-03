@@ -440,6 +440,8 @@ void EnergyFrictionalContactIPC::_run_proximity_and_update_contacts(Stark& stark
 			const Eigen::Vector3d& t2 = this->meshes[face_group].vertices[tri_lv[2]];
 
 			const auto dtype = ipc::point_triangle_distance_type(p, t0, t1, t2);
+			const double d_sq = ipc::point_triangle_distance(p, t0, t1, t2, dtype);
+			if (d_sq > std::pow(this->_get_contact_distance(vert_group, face_group), 2)) continue;
 
 			// Build proxies
 			const PhysicalSystem ps_v = this->meshes[vert_group].ps;
@@ -447,54 +449,36 @@ void EnergyFrictionalContactIPC::_run_proximity_and_update_contacts(Stark& stark
 			const int idx_v = this->meshes[vert_group].idx_in_ps;
 			const int idx_f = this->meshes[face_group].idx_in_ps;
 
-			auto global_v = [&](int loc) { return this->_local_to_ps_global_indices<1>(vert_group, {loc})[0]; };
-			auto global_f = [&](std::array<int,1> loc) { return this->_local_to_ps_global_indices<1>(face_group, loc)[0]; };
-			auto global_f2 = [&](std::array<int,2> locs) { return this->_local_to_ps_global_indices<2>(face_group, locs); };
-			auto global_f3 = [&](std::array<int,3> locs) { return this->_local_to_ps_global_indices<3>(face_group, locs); };
-
-			const int gv = global_v(vert_local);
+			const int gv = this->_local_to_ps_global_indices<1>(vert_group, {vert_local})[0];
+			const std::array<int,3> gt = this->_local_to_ps_global_indices<3>(face_group, tri_lv);
 
 			// Dispatch based on closest feature type
 			// PP sub-type: point vs one vertex of triangle
-			auto push_pp = [&](int face_corner_local) {
-				const int gq = global_f({face_corner_local});
-				const double dist = std::sqrt(ipc::point_point_distance(p, this->meshes[face_group].vertices[face_corner_local]));
-				if (dist > this->_get_contact_distance(vert_group, face_group)) return;
-
+			auto push_pp = [&](int gp) {
 				if (ps_v == PhysicalSystem::Deformable && ps_f == PhysicalSystem::Deformable)
-					contacts_deformables.point_triangle.point_point.push_back({vert_group, face_group, gv, gq});
+					contacts_deformables.point_triangle.point_point.push_back({vert_group, face_group, gv, gp});
 				else if (ps_v == PhysicalSystem::Rigidbody && ps_f == PhysicalSystem::Rigidbody)
-					contacts_rb.point_triangle.point_point.push_back({vert_group, face_group, idx_v, idx_f, gv, gq});
+					contacts_rb.point_triangle.point_point.push_back({vert_group, face_group, idx_v, idx_f, gv, gp});
 				else if (ps_v == PhysicalSystem::Rigidbody && ps_f == PhysicalSystem::Deformable)
-					contacts_rb_deformables.point_triangle.rb_d_point_point.push_back({vert_group, face_group, idx_v, gv, gq});
+					contacts_rb_deformables.point_triangle.rb_d_point_point.push_back({vert_group, face_group, idx_v, gv, gp});
 				else
-					contacts_rb_deformables.point_triangle.rb_d_point_point.push_back({face_group, vert_group, idx_f, gq, gv});
+					contacts_rb_deformables.point_triangle.rb_d_point_point.push_back({face_group, vert_group, idx_f, gp, gv});
 			};
 
 			// PE sub-type: point vs one edge of triangle
-			auto push_pe = [&](std::array<int,2> edge_corners_local) {
-				const auto ge = global_f2(edge_corners_local);
-				const Eigen::Vector3d& e0 = this->meshes[face_group].vertices[edge_corners_local[0]];
-				const Eigen::Vector3d& e1 = this->meshes[face_group].vertices[edge_corners_local[1]];
-				const double dist = std::sqrt(ipc::point_edge_distance(p, e0, e1));
-				if (dist > this->_get_contact_distance(vert_group, face_group)) return;
-
+			auto push_pe = [&](int ge1, int ge2) {
 				if (ps_v == PhysicalSystem::Deformable && ps_f == PhysicalSystem::Deformable)
-					contacts_deformables.point_triangle.point_edge.push_back({vert_group, face_group, gv, ge[0], ge[1]});
+					contacts_deformables.point_triangle.point_edge.push_back({vert_group, face_group, gv, ge1, ge2});
 				else if (ps_v == PhysicalSystem::Rigidbody && ps_f == PhysicalSystem::Rigidbody)
-					contacts_rb.point_triangle.point_edge.push_back({vert_group, face_group, idx_v, idx_f, gv, ge[0], ge[1]});
+					contacts_rb.point_triangle.point_edge.push_back({vert_group, face_group, idx_v, idx_f, gv, ge1, ge2});
 				else if (ps_v == PhysicalSystem::Rigidbody && ps_f == PhysicalSystem::Deformable)
-					contacts_rb_deformables.point_triangle.rb_d_point_edge.push_back({vert_group, face_group, idx_v, gv, ge[0], ge[1]});
+					contacts_rb_deformables.point_triangle.rb_d_point_edge.push_back({vert_group, face_group, idx_v, gv, ge1, ge2});
 				else
-					contacts_rb_deformables.point_triangle.rb_d_edge_point.push_back({face_group, vert_group, idx_f, ge[0], ge[1], gv});
+					contacts_rb_deformables.point_triangle.rb_d_edge_point.push_back({face_group, vert_group, idx_f, ge1, ge2, gv});
 			};
 
 			// PT sub-type: point vs triangle interior
 			auto push_pt = [&]() {
-				const auto gt = global_f3({tri_lv[0], tri_lv[1], tri_lv[2]});
-				const double dist = std::sqrt(ipc::point_triangle_distance(p, t0, t1, t2, dtype));
-				if (dist > this->_get_contact_distance(vert_group, face_group)) return;
-
 				if (ps_v == PhysicalSystem::Deformable && ps_f == PhysicalSystem::Deformable)
 					contacts_deformables.point_triangle.point_triangle.push_back({vert_group, face_group, gv, gt[0], gt[1], gt[2]});
 				else if (ps_v == PhysicalSystem::Rigidbody && ps_f == PhysicalSystem::Rigidbody)
@@ -507,12 +491,12 @@ void EnergyFrictionalContactIPC::_run_proximity_and_update_contacts(Stark& stark
 
 			using PT = ipc::PointTriangleDistanceType;
 			switch (dtype) {
-				case PT::P_T0: push_pp(tri_lv[0]); break;
-				case PT::P_T1: push_pp(tri_lv[1]); break;
-				case PT::P_T2: push_pp(tri_lv[2]); break;
-				case PT::P_E0: push_pe({tri_lv[0], tri_lv[1]}); break;
-				case PT::P_E1: push_pe({tri_lv[1], tri_lv[2]}); break;
-				case PT::P_E2: push_pe({tri_lv[2], tri_lv[0]}); break;
+				case PT::P_T0: push_pp(gt[0]); break;
+				case PT::P_T1: push_pp(gt[1]); break;
+				case PT::P_T2: push_pp(gt[2]); break;
+				case PT::P_E0: push_pe(gt[0], gt[1]); break;
+				case PT::P_E1: push_pe(gt[1], gt[2]); break;
+				case PT::P_E2: push_pe(gt[2], gt[0]); break;
 				case PT::P_T:  push_pt(); break;
 				default: break;
 			}
@@ -538,106 +522,76 @@ void EnergyFrictionalContactIPC::_run_proximity_and_update_contacts(Stark& stark
 			const Eigen::Vector3d& eb1 = this->meshes[gb].vertices[eb_lv[1]];
 
 			const auto dtype = ipc::edge_edge_distance_type(ea0, ea1, eb0, eb1);
+			const double d_sq = ipc::edge_edge_distance(ea0, ea1, eb0, eb1, dtype);
+			if (d_sq > std::pow(this->_get_contact_distance(ga, gb), 2)) continue;
 
 			const PhysicalSystem ps_a = this->meshes[ga].ps;
 			const PhysicalSystem ps_b = this->meshes[gb].ps;
 			const int idx_a = this->meshes[ga].idx_in_ps;
 			const int idx_b = this->meshes[gb].idx_in_ps;
 
-			// Global PS indices for ea, eb vertices
-			auto ga_v = [&](int loc) { return this->_local_to_ps_global_indices<1>(ga, {loc})[0]; };
-			auto gb_v = [&](int loc) { return this->_local_to_ps_global_indices<1>(gb, {loc})[0]; };
+			const std::array<int, 2> gea = this->_local_to_ps_global_indices<2>(ga, ea_lv);
+			const std::array<int, 2> geb = this->_local_to_ps_global_indices<2>(gb, eb_lv);
 
-			const int gea0 = ga_v(ea_lv[0]), gea1 = ga_v(ea_lv[1]);
-			const int geb0 = gb_v(eb_lv[0]), geb1 = gb_v(eb_lv[1]);
-
-			// EE PP: { group_a, group_b, ea0, ea1, p_on_ea, eb0, eb1, q_on_eb }
 			auto push_ee_pp = [&](int gpa, int gpb) {
-				const double dist = std::sqrt(ipc::point_point_distance(
-					(gpa == gea0 ? ea0 : ea1), (gpb == geb0 ? eb0 : eb1)));
-				if (dist > this->_get_contact_distance(ga, gb)) return;
 
 				if (ps_a == PhysicalSystem::Deformable && ps_b == PhysicalSystem::Deformable)
-					contacts_deformables.edge_edge.point_point.push_back({ga, gb, gea0, gea1, gpa, geb0, geb1, gpb});
+					contacts_deformables.edge_edge.point_point.push_back({ga, gb, gea[0], gea[1], gpa, geb[0], geb[1], gpb});
 				else if (ps_a == PhysicalSystem::Rigidbody && ps_b == PhysicalSystem::Rigidbody)
-					contacts_rb.edge_edge.point_point.push_back({ga, gb, idx_a, idx_b, gea0, gea1, gpa, geb0, geb1, gpb});
+					contacts_rb.edge_edge.point_point.push_back({ga, gb, idx_a, idx_b, gea[0], gea[1], gpa, geb[0], geb[1], gpb});
 				else if (ps_a == PhysicalSystem::Rigidbody && ps_b == PhysicalSystem::Deformable)
-					contacts_rb_deformables.edge_edge.rb_d_point_point.push_back({ga, gb, idx_a, gea0, gea1, gpa, geb0, geb1, gpb});
+					contacts_rb_deformables.edge_edge.rb_d_point_point.push_back({ga, gb, idx_a, gea[0], gea[1], gpa, geb[0], geb[1], gpb});
 				else
-					contacts_rb_deformables.edge_edge.rb_d_point_point.push_back({gb, ga, idx_b, geb0, geb1, gpb, gea0, gea1, gpa});
+					contacts_rb_deformables.edge_edge.rb_d_point_point.push_back({gb, ga, idx_b, geb[0], geb[1], gpb, gea[0], gea[1], gpa});
 			};
 
-			// EE PE: A has interior closest, B has endpoint (or vice versa, we always put the endpoint as "p")
-			// Convention: conn["ea0","ea1","p","eb0","eb1"]  - ea is the edge containing p (the endpoint), eb is the other edge (interior)
-			// For EA_EBx (interior of A closest to vertex of B): A is "interior edge" = eb, B is "edge-with-endpoint" = ea
-			// We swap: A_parent = gb (edge containing the B endpoint), B_edge = ga (interior edge)
-			auto push_ee_pe_point_on_b = [&](int gb_endpoint_loc) {
-				// B endpoint is closest to interior of A
-				// A (interior edge) = ga, B (parent edge of endpoint) = gb
-				// convention: {A_parent_group, B_interior_group, A_parent_ea0, A_parent_ea1, A_parent_p, B_interior_eb0, B_interior_eb1}
-				// i.e. ea=parent of point, eb=interior edge
-				const int gp = gb_v(gb_endpoint_loc);
-				const Eigen::Vector3d& bpt = this->meshes[gb].vertices[gb_endpoint_loc];
-				const double dist = std::sqrt(ipc::point_edge_distance(bpt, ea0, ea1));
-				if (dist > this->_get_contact_distance(ga, gb)) return;
+			auto push_ee_pe_point_on_b = [&](int gp) {
 
 				if (ps_a == PhysicalSystem::Deformable && ps_b == PhysicalSystem::Deformable)
-					contacts_deformables.edge_edge.point_edge.push_back({gb, ga, geb0, geb1, gp, gea0, gea1});
+					contacts_deformables.edge_edge.point_edge.push_back({gb, ga, geb[0], geb[1], gp, gea[0], gea[1]});
 				else if (ps_a == PhysicalSystem::Rigidbody && ps_b == PhysicalSystem::Rigidbody)
-					contacts_rb.edge_edge.point_edge.push_back({gb, ga, idx_b, idx_a, geb0, geb1, gp, gea0, gea1});
+					contacts_rb.edge_edge.point_edge.push_back({gb, ga, idx_b, idx_a, geb[0], geb[1], gp, gea[0], gea[1]});
 				else if (ps_a == PhysicalSystem::Rigidbody && ps_b == PhysicalSystem::Deformable)
-					// A=ga=rb, B=gb=deformable; "ea"=gb (parent of point), "eb"=ga (interior)
-					// rb_d_point_edge: rb is ea side, d is eb side
-					// but here ea side (gb) is deformable, eb side (ga) is rb → use rb_d_edge_point
-					contacts_rb_deformables.edge_edge.rb_d_edge_point.push_back({ga, gb, idx_a, gea0, gea1, geb0, geb1, gp});
+					contacts_rb_deformables.edge_edge.rb_d_edge_point.push_back({ga, gb, idx_a, gea[0], gea[1], geb[0], geb[1], gp});
 				else
-					// ps_a=D, ps_b=RB
-					contacts_rb_deformables.edge_edge.rb_d_point_edge.push_back({gb, ga, idx_b, geb0, geb1, gp, gea0, gea1});
+					contacts_rb_deformables.edge_edge.rb_d_point_edge.push_back({gb, ga, idx_b, geb[0], geb[1], gp, gea[0], gea[1]});
 			};
 
-			auto push_ee_pe_point_on_a = [&](int ga_endpoint_loc) {
-				// A endpoint is closest to interior of B
-				// "ea" = parent of point (ga), "eb" = interior edge (gb)
-				const int gp = ga_v(ga_endpoint_loc);
-				const Eigen::Vector3d& apt = this->meshes[ga].vertices[ga_endpoint_loc];
-				const double dist = std::sqrt(ipc::point_edge_distance(apt, eb0, eb1));
-				if (dist > this->_get_contact_distance(ga, gb)) return;
+			auto push_ee_pe_point_on_a = [&](int gp) {
 
 				if (ps_a == PhysicalSystem::Deformable && ps_b == PhysicalSystem::Deformable)
-					contacts_deformables.edge_edge.point_edge.push_back({ga, gb, gea0, gea1, gp, geb0, geb1});
+					contacts_deformables.edge_edge.point_edge.push_back({ga, gb, gea[0], gea[1], gp, geb[0], geb[1]});
 				else if (ps_a == PhysicalSystem::Rigidbody && ps_b == PhysicalSystem::Rigidbody)
-					contacts_rb.edge_edge.point_edge.push_back({ga, gb, idx_a, idx_b, gea0, gea1, gp, geb0, geb1});
+					contacts_rb.edge_edge.point_edge.push_back({ga, gb, idx_a, idx_b, gea[0], gea[1], gp, geb[0], geb[1]});
 				else if (ps_a == PhysicalSystem::Rigidbody && ps_b == PhysicalSystem::Deformable)
-					contacts_rb_deformables.edge_edge.rb_d_point_edge.push_back({ga, gb, idx_a, gea0, gea1, gp, geb0, geb1});
+					contacts_rb_deformables.edge_edge.rb_d_point_edge.push_back({ga, gb, idx_a, gea[0], gea[1], gp, geb[0], geb[1]});
 				else
-					contacts_rb_deformables.edge_edge.rb_d_edge_point.push_back({gb, ga, idx_b, geb0, geb1, gea0, gea1, gp});
+					contacts_rb_deformables.edge_edge.rb_d_edge_point.push_back({gb, ga, idx_b, geb[0], geb[1], gea[0], gea[1], gp});
 			};
 
 			// EE EE: interior of A closest to interior of B
 			auto push_ee_ee = [&]() {
-				const double dist = std::sqrt(ipc::edge_edge_distance(ea0, ea1, eb0, eb1));
-				if (dist > this->_get_contact_distance(ga, gb)) return;
 
 				if (ps_a == PhysicalSystem::Deformable && ps_b == PhysicalSystem::Deformable)
-					contacts_deformables.edge_edge.edge_edge.push_back({ga, gb, gea0, gea1, geb0, geb1});
+					contacts_deformables.edge_edge.edge_edge.push_back({ga, gb, gea[0], gea[1], geb[0], geb[1]});
 				else if (ps_a == PhysicalSystem::Rigidbody && ps_b == PhysicalSystem::Rigidbody)
-					contacts_rb.edge_edge.edge_edge.push_back({ga, gb, idx_a, idx_b, gea0, gea1, geb0, geb1});
+					contacts_rb.edge_edge.edge_edge.push_back({ga, gb, idx_a, idx_b, gea[0], gea[1], geb[0], geb[1]});
 				else if (ps_a == PhysicalSystem::Rigidbody && ps_b == PhysicalSystem::Deformable)
-					contacts_rb_deformables.edge_edge.rb_d_edge_edge.push_back({ga, gb, idx_a, gea0, gea1, geb0, geb1});
+					contacts_rb_deformables.edge_edge.rb_d_edge_edge.push_back({ga, gb, idx_a, gea[0], gea[1], geb[0], geb[1]});
 				else
-					contacts_rb_deformables.edge_edge.rb_d_edge_edge.push_back({gb, ga, idx_b, geb0, geb1, gea0, gea1});
+					contacts_rb_deformables.edge_edge.rb_d_edge_edge.push_back({gb, ga, idx_b, geb[0], geb[1], gea[0], gea[1]});
 			};
 
 			using EE = ipc::EdgeEdgeDistanceType;
 			switch (dtype) {
-				case EE::EA0_EB0: push_ee_pp(gea0, geb0); break;
-				case EE::EA0_EB1: push_ee_pp(gea0, geb1); break;
-				case EE::EA1_EB0: push_ee_pp(gea1, geb0); break;
-				case EE::EA1_EB1: push_ee_pp(gea1, geb1); break;
-				case EE::EA_EB0:  push_ee_pe_point_on_b(eb_lv[0]); break;
-				case EE::EA_EB1:  push_ee_pe_point_on_b(eb_lv[1]); break;
-				case EE::EA0_EB:  push_ee_pe_point_on_a(ea_lv[0]); break;
-				case EE::EA1_EB:  push_ee_pe_point_on_a(ea_lv[1]); break;
+				case EE::EA0_EB0: push_ee_pp(gea[0], geb[0]); break;
+				case EE::EA0_EB1: push_ee_pp(gea[0], geb[1]); break;
+				case EE::EA1_EB0: push_ee_pp(gea[1], geb[0]); break;
+				case EE::EA1_EB1: push_ee_pp(gea[1], geb[1]); break;
+				case EE::EA_EB0:  push_ee_pe_point_on_b(geb[0]); break;
+				case EE::EA_EB1:  push_ee_pe_point_on_b(geb[1]); break;
+				case EE::EA0_EB:  push_ee_pe_point_on_a(gea[0]); break;
+				case EE::EA1_EB:  push_ee_pe_point_on_a(gea[1]); break;
 				case EE::EA_EB:   push_ee_ee(); break;
 				default: break;
 			}
@@ -715,65 +669,54 @@ void EnergyFrictionalContactIPC::_run_proximity_and_update_friction(Stark& stark
 			const Eigen::Vector3d& t2 = this->meshes[face_group].vertices[tri_lv[2]];
 
 			const auto dtype = ipc::point_triangle_distance_type(p, t0, t1, t2);
+			const double d_sq = ipc::point_triangle_distance(p, t0, t1, t2, dtype);
+			if (d_sq > std::pow(this->_get_contact_distance(vert_group, face_group), 2)) continue;
+			const double d = std::sqrt(d_sq);
 
 			const PhysicalSystem ps_v = this->meshes[vert_group].ps;
 			const PhysicalSystem ps_f = this->meshes[face_group].ps;
 			const int idx_v = this->meshes[vert_group].idx_in_ps;
 			const int idx_f = this->meshes[face_group].idx_in_ps;
 
-			auto gv1 = [&](int loc) { return this->_local_to_ps_global_indices<1>(vert_group, {loc})[0]; };
-			auto gf1 = [&](int loc) { return this->_local_to_ps_global_indices<1>(face_group, {loc})[0]; };
-			auto gf2 = [&](std::array<int,2> l) { return this->_local_to_ps_global_indices<2>(face_group, l); };
-			auto gf3 = [&](std::array<int,3> l) { return this->_local_to_ps_global_indices<3>(face_group, l); };
+			const int gv = this->_local_to_ps_global_indices<1>(vert_group, {vert_local})[0];
+			const std::array<int,3> gt = this->_local_to_ps_global_indices<3>(face_group, tri_lv);
 
-			const int gv = gv1(vert_local);
 
 			using PT = ipc::PointTriangleDistanceType;
 
-			auto do_pp = [&](int fcl) {
-				const double d = std::sqrt(ipc::point_point_distance(p, this->meshes[face_group].vertices[fcl]));
-				if (d > this->_get_contact_distance(vert_group, face_group)) return;
-				const int gq = gf1(fcl);
+			auto do_pp = [&](int index) {
 				if (ps_v == PhysicalSystem::Deformable && ps_f == PhysicalSystem::Deformable) {
-					friction_deformables.point_point.conn.numbered_push_back({gv, gq});
-					point_point(friction_deformables.point_point.contact, mu, d, vert_group, vert_local, face_group, fcl);
+					friction_deformables.point_point.conn.numbered_push_back({gv, gt[index]});
+					point_point(friction_deformables.point_point.contact, mu, d, vert_group, vert_local, face_group, tri_lv[index]);
 				} else if (ps_v == PhysicalSystem::Rigidbody && ps_f == PhysicalSystem::Rigidbody) {
-					friction_rb.point_point.conn.numbered_push_back({idx_v, idx_f, gv, gq});
-					point_point(friction_rb.point_point.contact, mu, d, vert_group, vert_local, face_group, fcl);
+					friction_rb.point_point.conn.numbered_push_back({idx_v, idx_f, gv, gt[index]});
+					point_point(friction_rb.point_point.contact, mu, d, vert_group, vert_local, face_group, tri_lv[index]);
 				} else if (ps_v == PhysicalSystem::Rigidbody && ps_f == PhysicalSystem::Deformable) {
-					friction_rb_deformables.point_point.conn.numbered_push_back({idx_v, gv, gq});
-					point_point(friction_rb_deformables.point_point.contact, mu, d, vert_group, vert_local, face_group, fcl);
+					friction_rb_deformables.point_point.conn.numbered_push_back({idx_v, gv, gt[index]});
+					point_point(friction_rb_deformables.point_point.contact, mu, d, vert_group, vert_local, face_group, tri_lv[index]);
 				} else {
-					friction_rb_deformables.point_point.conn.numbered_push_back({idx_f, gq, gv});
-					point_point(friction_rb_deformables.point_point.contact, mu, d, vert_group, vert_local, face_group, fcl);
+					friction_rb_deformables.point_point.conn.numbered_push_back({idx_f, gt[index], gv});
+					point_point(friction_rb_deformables.point_point.contact, mu, d, vert_group, vert_local, face_group, tri_lv[index]);
 				}
 			};
 
-			auto do_pe = [&](std::array<int,2> ecl) {
-				const Eigen::Vector3d& e0 = this->meshes[face_group].vertices[ecl[0]];
-				const Eigen::Vector3d& e1 = this->meshes[face_group].vertices[ecl[1]];
-				const double d = std::sqrt(ipc::point_edge_distance(p, e0, e1));
-				if (d > this->_get_contact_distance(vert_group, face_group)) return;
-				const auto ge = gf2(ecl);
+			auto do_pe = [&](int i1, int i2) {
 				if (ps_v == PhysicalSystem::Deformable && ps_f == PhysicalSystem::Deformable) {
-					friction_deformables.point_edge.conn.numbered_push_back({gv, ge[0], ge[1]});
-					point_edge(friction_deformables.point_edge.data, mu, d, vert_group, vert_local, face_group, ecl[0], ecl[1]);
+					friction_deformables.point_edge.conn.numbered_push_back({gv, gt[i1], gt[i2]});
+					point_edge(friction_deformables.point_edge.data, mu, d, vert_group, vert_local, face_group, tri_lv[i1], tri_lv[i2]);
 				} else if (ps_v == PhysicalSystem::Rigidbody && ps_f == PhysicalSystem::Rigidbody) {
-					friction_rb.point_edge.conn.numbered_push_back({idx_v, idx_f, gv, ge[0], ge[1]});
-					point_edge(friction_rb.point_edge.data, mu, d, vert_group, vert_local, face_group, ecl[0], ecl[1]);
+					friction_rb.point_edge.conn.numbered_push_back({idx_v, idx_f, gv, gt[i1], gt[i2]});
+					point_edge(friction_rb.point_edge.data, mu, d, vert_group, vert_local, face_group, tri_lv[i1], tri_lv[i2]);
 				} else if (ps_v == PhysicalSystem::Rigidbody && ps_f == PhysicalSystem::Deformable) {
-					friction_rb_deformables.point_edge.conn.numbered_push_back({idx_v, gv, ge[0], ge[1]});
-					point_edge(friction_rb_deformables.point_edge.data, mu, d, vert_group, vert_local, face_group, ecl[0], ecl[1]);
+					friction_rb_deformables.point_edge.conn.numbered_push_back({idx_v, gv, gt[i1], gt[i2]});
+					point_edge(friction_rb_deformables.point_edge.data, mu, d, vert_group, vert_local, face_group, tri_lv[i1], tri_lv[i2]);
 				} else {
-					friction_rb_deformables.edge_point.conn.numbered_push_back({idx_f, ge[0], ge[1], gv});
-					point_edge(friction_rb_deformables.edge_point.data, mu, d, vert_group, vert_local, face_group, ecl[0], ecl[1]);
+					friction_rb_deformables.edge_point.conn.numbered_push_back({idx_f, gt[i1], gt[i2], gv});
+					point_edge(friction_rb_deformables.edge_point.data, mu, d, vert_group, vert_local, face_group, tri_lv[i1], tri_lv[i2]);
 				}
 			};
 
 			auto do_pt = [&]() {
-				const double d = std::sqrt(ipc::point_triangle_distance(p, t0, t1, t2, dtype));
-				if (d > this->_get_contact_distance(vert_group, face_group)) return;
-				const auto gt = gf3({tri_lv[0], tri_lv[1], tri_lv[2]});
 				if (ps_v == PhysicalSystem::Deformable && ps_f == PhysicalSystem::Deformable) {
 					friction_deformables.point_triangle.conn.numbered_push_back({gv, gt[0], gt[1], gt[2]});
 					point_triangle(friction_deformables.point_triangle.data, mu, d, vert_group, vert_local, face_group, tri_lv[0], tri_lv[1], tri_lv[2]);
@@ -790,12 +733,12 @@ void EnergyFrictionalContactIPC::_run_proximity_and_update_friction(Stark& stark
 			};
 
 			switch (dtype) {
-				case PT::P_T0: do_pp(tri_lv[0]); break;
-				case PT::P_T1: do_pp(tri_lv[1]); break;
-				case PT::P_T2: do_pp(tri_lv[2]); break;
-				case PT::P_E0: do_pe({tri_lv[0], tri_lv[1]}); break;
-				case PT::P_E1: do_pe({tri_lv[1], tri_lv[2]}); break;
-				case PT::P_E2: do_pe({tri_lv[2], tri_lv[0]}); break;
+				case PT::P_T0: do_pp(0); break;
+				case PT::P_T1: do_pp(1); break;
+				case PT::P_T2: do_pp(2); break;
+				case PT::P_E0: do_pe(0, 1); break;
+				case PT::P_E1: do_pe(1, 2); break;
+				case PT::P_E2: do_pe(2, 0); break;
 				case PT::P_T:  do_pt(); break;
 				default: break;
 			}
@@ -822,6 +765,9 @@ void EnergyFrictionalContactIPC::_run_proximity_and_update_friction(Stark& stark
 			const Eigen::Vector3d& eb1 = this->meshes[gb].vertices[eb_lv[1]];
 
 			const auto dtype = ipc::edge_edge_distance_type(ea0, ea1, eb0, eb1);
+			const double d_sq = ipc::edge_edge_distance(ea0, ea1, eb0, eb1, dtype);
+			if (d_sq > std::pow(this->_get_contact_distance(ga, gb), 2)) continue;
+			const double d = std::sqrt(d_sq);
 
 			const PhysicalSystem ps_a = this->meshes[ga].ps;
 			const PhysicalSystem ps_b = this->meshes[gb].ps;
@@ -834,36 +780,18 @@ void EnergyFrictionalContactIPC::_run_proximity_and_update_friction(Stark& stark
 			const int gea0 = gal(ea_lv[0]), gea1 = gal(ea_lv[1]);
 			const int geb0 = gbl(eb_lv[0]), geb1 = gbl(eb_lv[1]);
 
-			// For EE friction, all sub-types use edge_edge friction helper
-			// (the EE friction energy always uses the full edge pair for bary and T)
-			auto push_ee_friction = [&]() {
-				const double d = std::sqrt(ipc::edge_edge_distance(ea0, ea1, eb0, eb1));
-				if (d > this->_get_contact_distance(ga, gb)) return;
-
-				if (ps_a == PhysicalSystem::Deformable && ps_b == PhysicalSystem::Deformable) {
-					friction_deformables.edge_edge.conn.numbered_push_back({gea0, gea1, geb0, geb1});
-					edge_edge(friction_deformables.edge_edge.data, mu, d, ga, ea_lv[0], ea_lv[1], gb, eb_lv[0], eb_lv[1]);
-				} else if (ps_a == PhysicalSystem::Rigidbody && ps_b == PhysicalSystem::Rigidbody) {
-					friction_rb.edge_edge.conn.numbered_push_back({idx_a, idx_b, gea0, gea1, geb0, geb1});
-					edge_edge(friction_rb.edge_edge.data, mu, d, ga, ea_lv[0], ea_lv[1], gb, eb_lv[0], eb_lv[1]);
-				} else if (ps_a == PhysicalSystem::Rigidbody && ps_b == PhysicalSystem::Deformable) {
-					friction_rb_deformables.edge_edge.conn.numbered_push_back({idx_a, gea0, gea1, geb0, geb1});
-					edge_edge(friction_rb_deformables.edge_edge.data, mu, d, ga, ea_lv[0], ea_lv[1], gb, eb_lv[0], eb_lv[1]);
-				} else {
-					friction_rb_deformables.edge_edge.conn.numbered_push_back({idx_b, geb0, geb1, gea0, gea1});
-					edge_edge(friction_rb_deformables.edge_edge.data, mu, d, gb, eb_lv[0], eb_lv[1], ga, ea_lv[0], ea_lv[1]);
-				}
-			};
-
-			using EE = ipc::EdgeEdgeDistanceType;
-			// All EE sub-types (PP, PE, EE) use the same edge_edge friction formulation
-			switch (dtype) {
-				case EE::EA0_EB0: case EE::EA0_EB1: case EE::EA1_EB0: case EE::EA1_EB1:
-				case EE::EA_EB0: case EE::EA_EB1: case EE::EA0_EB: case EE::EA1_EB:
-				case EE::EA_EB:
-					push_ee_friction();
-					break;
-				default: break;
+			if (ps_a == PhysicalSystem::Deformable && ps_b == PhysicalSystem::Deformable) {
+				friction_deformables.edge_edge.conn.numbered_push_back({gea0, gea1, geb0, geb1});
+				edge_edge(friction_deformables.edge_edge.data, mu, d, ga, ea_lv[0], ea_lv[1], gb, eb_lv[0], eb_lv[1]);
+			} else if (ps_a == PhysicalSystem::Rigidbody && ps_b == PhysicalSystem::Rigidbody) {
+				friction_rb.edge_edge.conn.numbered_push_back({idx_a, idx_b, gea0, gea1, geb0, geb1});
+				edge_edge(friction_rb.edge_edge.data, mu, d, ga, ea_lv[0], ea_lv[1], gb, eb_lv[0], eb_lv[1]);
+			} else if (ps_a == PhysicalSystem::Rigidbody && ps_b == PhysicalSystem::Deformable) {
+				friction_rb_deformables.edge_edge.conn.numbered_push_back({idx_a, gea0, gea1, geb0, geb1});
+				edge_edge(friction_rb_deformables.edge_edge.data, mu, d, ga, ea_lv[0], ea_lv[1], gb, eb_lv[0], eb_lv[1]);
+			} else {
+				friction_rb_deformables.edge_edge.conn.numbered_push_back({idx_b, geb0, geb1, gea0, gea1});
+				edge_edge(friction_rb_deformables.edge_edge.data, mu, d, gb, eb_lv[0], eb_lv[1], ga, ea_lv[0], ea_lv[1]);
 			}
 		}
 	}
@@ -1354,7 +1282,7 @@ double EnergyFrictionalContactIPC::_barrier_force(const double d, const double d
 	if (this->ipc_barrier_type == IPCBarrierTypeIPC::Cubic) {
 		return k * std::pow(dhat - d, 2);
 	} else {
-		return (k * (dhat - d) * (2.0 * d * std::log(d / dhat) + d - dhat)) / d;
+		return -(k * (dhat - d) * (2.0 * d * std::log(d / dhat) + d - dhat)) / d;
 	}
 }
 Scalar EnergyFrictionalContactIPC::_edge_edge_mollifier(const std::vector<Vector>& ea, const std::vector<Vector>& eb, const std::vector<Vector>& ea_rest, const std::vector<Vector>& eb_rest)

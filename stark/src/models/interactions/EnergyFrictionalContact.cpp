@@ -1275,7 +1275,7 @@ double EnergyFrictionalContact::_barrier_force(const double d, const double dhat
 		return k * std::pow(dhat - d, 2);
 	}
 	else if (this->ipc_barrier_type == IPCBarrierType::Log) {
-		return (k * (dhat - d) * (2.0 * d * std::log(d / dhat) + d - dhat)) / d;
+		return -(k * (dhat - d) * (2.0 * d * std::log(d / dhat) + d - dhat)) / d;
 	}
 	else {
 		std::cout << "stark error: Unknown IPC barrier type." << std::endl;
