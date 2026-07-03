@@ -1,6 +1,8 @@
 #pragma once
 #ifdef STARK_USE_IPC_TOOLKIT
 
+#include <memory>
+
 #include <ipc/collision_mesh.hpp>
 #include <ipc/candidates/candidates.hpp>
 #include <ipc/broad_phase/lbvh.hpp>
@@ -86,7 +88,7 @@ namespace stark
 		IPCFrictionTypeIPC ipc_friction_type = IPCFrictionTypeIPC::C0;
 		const double edge_edge_cross_norm_sq_cutoff = 1e-30;
 		const double friction_displacement_perturbation = 1e-9;
-		ipc::BroadPhase* broad_phase;
+		std::unique_ptr<ipc::LBVH> broad_phase;
 
 		// SymX data
 		std::vector<double> contact_thicknesses;
@@ -161,8 +163,9 @@ namespace stark
 		bool _is_pair_disabled(int group_a, int group_b) const;
 
 		// Broad-phase + connectivity population
+		void _update_vertices_and_candidates(Stark& stark, double dt);
 		void _run_proximity_and_update_contacts(Stark& stark, double dt);
-		void _run_proximity_and_update_friction(Stark& stark, double dt);
+		void _run_proximity_and_update_friction(Stark& stark);
 
 		// Sub-type classification and dispatch helpers (mirrors EnergyFrictionalContact)
 		std::array<int, 2> _get_pair_key(const Handler& obj0, const Handler& obj1);

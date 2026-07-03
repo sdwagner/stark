@@ -51,7 +51,7 @@ EnergyFrictionalContactIPC::EnergyFrictionalContactIPC(Stark& stark, const spPoi
 	this->_energies_friction_deformables(stark);
 	this->_energies_friction_rb(stark);
 	this->_energies_friction_rb_deformables(stark);
-	broad_phase = new ipc::LBVH();
+	this->broad_phase = std::make_unique<ipc::LBVH>();
 }
 
 /* ========================================================================================== */
@@ -404,23 +404,18 @@ bool EnergyFrictionalContactIPC::_is_pair_disabled(int group_a, int group_b) con
 /* ===================================  PROXIMITY DETECTION  ================================ */
 /* ========================================================================================== */
 
+void EnergyFrictionalContactIPC::_update_vertices_and_candidates(Stark& stark, double dt)
+{
+	this->_update_vertices(stark, dt);
+	if (this->ipc_mesh_dirty) this->_build_ipc_mesh();
+	this->_update_combined_V();
+	const double max_dhat = *std::max_element(this->contact_thicknesses.begin(), this->contact_thicknesses.end());
+	this->ipc_candidates.build(this->ipc_mesh, this->V_combined, 2.0 * max_dhat, this->broad_phase.get());
+}
+
 void EnergyFrictionalContactIPC::_run_proximity_and_update_contacts(Stark& stark, double dt)
 {
-	// Update mesh vertex positions
-	this->_update_vertices(stark, dt);
-
-	// Lazily build the combined ipc mesh
-	if (this->ipc_mesh_dirty) {
-		this->_build_ipc_mesh();
-	}
-	this->_update_combined_V();
-
-	// Find max dhat for inflation radius
-	const double max_dhat = *std::max_element(this->contact_thicknesses.begin(), this->contact_thicknesses.end());
-	const double inflation = 2.0 * max_dhat;
-
-	// Run broad phase
-	this->ipc_candidates.build(this->ipc_mesh, this->V_combined, inflation, broad_phase);
+	this->_update_vertices_and_candidates(stark, dt);
 
 	// Clear contact connectivity
 	this->contacts_deformables.clear();
@@ -650,10 +645,9 @@ void EnergyFrictionalContactIPC::_run_proximity_and_update_contacts(Stark& stark
 	}
 }
 
-void EnergyFrictionalContactIPC::_run_proximity_and_update_friction(Stark& stark, double dt)
+void EnergyFrictionalContactIPC::_run_proximity_and_update_friction(Stark& stark)
 {
-	// Vertices already updated; ipc_candidates already built.
-	// Reuse ipc_candidates from last _run_proximity_and_update_contacts call (at dt=0).
+	// Vertices and ipc_candidates already built by _update_vertices_and_candidates.
 	this->friction_deformables.clear();
 	this->friction_rb.clear();
 	this->friction_rb_deformables.clear();
@@ -893,9 +887,10 @@ void EnergyFrictionalContactIPC::_before_time_step__update_friction_contacts(Sta
 	if (!this->global_params.friction_enabled) return;
 	if (this->is_empty()) return;
 
-	// Run proximity at dt=0 to build friction contacts at the start of the step
-	this->_run_proximity_and_update_contacts(stark, 0.0);
-	this->_run_proximity_and_update_friction(stark, 0.0);
+	// Build candidates at dt=0 for lagged friction contacts; skip contact population
+	// since it is immediately rebuilt on the first Newton iteration.
+	this->_update_vertices_and_candidates(stark, 0.0);
+	this->_run_proximity_and_update_friction(stark);
 }
 
 bool EnergyFrictionalContactIPC::_is_intermediate_state_valid(Stark& stark, bool is_initial_check)
@@ -908,7 +903,7 @@ bool EnergyFrictionalContactIPC::_is_intermediate_state_valid(Stark& stark, bool
 	if (this->ipc_mesh_dirty) this->_build_ipc_mesh();
 	this->_update_combined_V();
 
-	const bool has_intersections = ipc::has_intersections(this->ipc_mesh, this->V_combined, broad_phase);
+	const bool has_intersections = ipc::has_intersections(this->ipc_mesh, this->V_combined, this->broad_phase.get());
 	if (has_intersections) {
 		if (is_initial_check) {
 			stark.context->output->print_with_new_line("IPC-Toolkit: intersection detected.", symx::Verbosity::Summary);
@@ -1010,7 +1005,7 @@ double EnergyFrictionalContactIPC::_ccd_max_allowed_step(Stark& stark, const Eig
 		// If DOFs not found, leave V1[group] = V0[group] (conservative: no CCD for this group)
 	}
 
-	const double max_step = ipc::compute_collision_free_stepsize(this->ipc_mesh, V0, V1, 0, broad_phase);
+	const double max_step = ipc::compute_collision_free_stepsize(this->ipc_mesh, V0, V1, 0, this->broad_phase.get());
 	return max_step;
 }
 
