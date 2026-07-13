@@ -30,6 +30,7 @@ namespace stark
 		/* Methods */
 		EnergyTriangleStretching(Stark& stark, spPointDynamics dyn);
 		Handler add(const PointSetHandler& set, const std::vector<std::array<int, 3>>& triangles, const Params& params);
+		Handler add(const PointSetHandler& set, const std::vector<std::array<int, 2>>& edges, const Params& params);
 		Handler add(const PointSetHandler& set, const std::vector<std::array<int, 3>>& triangles, const std::map<std::pair<int,int>, double>& stitched_vertices, const Params& params);
 		Params get_params(const Handler& handler) const;
 		void set_params(const Handler& handler, const Params& params);

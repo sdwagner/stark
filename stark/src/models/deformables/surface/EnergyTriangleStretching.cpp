@@ -55,6 +55,26 @@ stark::EnergyTriangleStretching::Handler stark::EnergyTriangleStretching::add(co
 	return Handler(this, group);
 }
 
+stark::EnergyTriangleStretching::Handler stark::EnergyTriangleStretching::add(const PointSetHandler& set, const std::vector<std::array<int, 2>>& edges, const Params& params)
+{
+	set.exit_if_not_valid("EnergyTriangleStretching::add");
+	const int group = (int)this->stiffness.size();
+
+	this->scale.push_back(params.scale);
+	this->stiffness.push_back(params.stiffness);
+
+	// Connectivity
+	symx::LabelledConnectivity<4>* conn = &this->conn_complete;
+	for (int tri_i = 0; tri_i < (int)edges.size(); tri_i++) {
+		const std::array<int, 2>& conn_loc = edges[tri_i];
+		const std::array<int, 2> conn_glob = set.get_global_indices(conn_loc);
+		conn->numbered_push_back({ group, conn_glob[0], conn_glob[1] });
+		rest_length.push_back((this->dyn->X[conn_glob[0]]-this->dyn->X[conn_glob[1]]).norm());
+	}
+
+	return Handler(this, group);
+}
+
 stark::EnergyTriangleStretching::Handler stark::EnergyTriangleStretching::add(const PointSetHandler& set, const std::vector<std::array<int, 3>>& triangles, const std::map<std::pair<int,int>, double>& stitched_vertices, const Params& params)
 {
 	set.exit_if_not_valid("EnergyTriangleStretching::add");
