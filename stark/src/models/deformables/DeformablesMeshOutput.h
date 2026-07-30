@@ -2,6 +2,7 @@
 #include <vector>
 #include <array>
 #include <string>
+#include <functional>
 
 #include <Eigen/Dense>
 
@@ -28,6 +29,10 @@ namespace stark
 		void add_triangle_mesh(const std::string& label, const PointSetHandler& set, const std::vector<std::array<int, 3>>& conn, const std::vector<Eigen::Vector2d>& tex_coords, const std::vector<int>& point_set_map);
 		void add_tet_mesh(const std::string& label, const PointSetHandler& set, const std::vector<std::array<int, 4>>& conn);
 		void add_tet_mesh(const std::string& label, const PointSetHandler& set, const std::vector<std::array<int, 4>>& conn, const std::vector<int>& point_set_map);
+
+		std::function<void(const std::string& label,
+		                   const std::vector<Eigen::Vector3d>& vertices,
+		                   const std::vector<std::array<int, 3>>& conn)> on_mesh_output = nullptr;
 
 	private:
 		/* Fields */

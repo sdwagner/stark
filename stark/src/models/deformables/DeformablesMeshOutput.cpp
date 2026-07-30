@@ -124,6 +124,8 @@ void DeformablesMeshOutput::write_USD(Stark& stark, const MeshOutputGroups& grou
 				uvs.push_back(elem);
 			}
 		}
+		if (on_mesh_output)
+			on_mesh_output(label, outputMesh.vertices, outputMesh.conn);
 		const auto primPath = pxr::SdfPath("/" + label);
 		if (stark.current_frame != 0)
 			uvs.clear();
