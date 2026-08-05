@@ -49,6 +49,12 @@ option(STARK_IPC_TOOLKIT_CONTACT
 set(SYMX_EIGEN_PUBLIC ON)
 set(SYMX_FMT_PUBLIC   ON)
 set(SYMX_HESS_STORAGE_FLOAT "double" CACHE STRING "Storage type for Hessian matrices (float or double)" FORCE)
+
+if(NOT TARGET Eigen3::Eigen)
+    find_package(Eigen3 REQUIRED NO_CMAKE_PACKAGE_REGISTRY)
+    message(STATUS "Stark: Eigen3 unified across SymX and IPC-Toolkit (v${Eigen3_VERSION})")
+endif()
+
 add_subdirectory(extern/symx)
 add_subdirectory(extern/TriangleMeshCollisionDetection)
 
