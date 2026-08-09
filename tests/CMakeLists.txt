@@ -3,6 +3,8 @@ add_subdirectory(extern/Catch2)
 
 # Source files
 set(SOURCE_FILES
+    newton_step_filter.cpp
+    ogc_contact.cpp
     rb_constraints.cpp
 	)
 

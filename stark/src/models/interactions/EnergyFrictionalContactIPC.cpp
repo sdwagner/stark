@@ -3,6 +3,7 @@
 
 #include <cmath>
 #include <algorithm>
+#include <stdexcept>
 #include <fmt/format.h>
 
 #include <ipc/distance/point_point.hpp>
@@ -19,6 +20,24 @@
 using namespace stark;
 using namespace symx;
 
+void OGCContactData::clear()
+{
+	deformable.vv.clear();
+	deformable.ev.clear();
+	deformable.ee.clear();
+	deformable.fv.clear();
+	rigid_body.vv.clear();
+	rigid_body.ev.clear();
+	rigid_body.ee.clear();
+	rigid_body.fv.clear();
+	mixed.vv.clear();
+	mixed.rb_vertex_d_edge.clear();
+	mixed.d_vertex_rb_edge.clear();
+	mixed.ee.clear();
+	mixed.rb_vertex_d_face.clear();
+	mixed.d_vertex_rb_face.clear();
+}
+
 /* ========================================================================================== */
 /* ===================================  CONSTRUCTOR  ======================================== */
 /* ========================================================================================== */
@@ -29,7 +48,17 @@ EnergyFrictionalContactIPC::EnergyFrictionalContactIPC(Stark& stark, const spPoi
 	if (!stark.settings.simulation.init_frictional_contact) { return; }
 	this->is_initialized = true;
 
+	stark.callbacks->add_before_simulation([&]() {
+		this->_validate_ogc_configuration();
+		this->configuration_locked = true;
+	});
 	stark.callbacks->add_before_time_step([&]() { this->_before_time_step__update_friction_contacts(stark); });
+	stark.callbacks->newton->add_before_step([&]() { this->_before_newton_step__update_ogc_contacts(stark); });
+	stark.callbacks->newton->add_step_filter(
+		[&](const Eigen::VectorXd& x, Eigen::VectorXd& du) -> double {
+			return this->_filter_ogc_step(stark, x, du);
+		}
+	);
 	stark.callbacks->newton->add_before_energy_evaluation([&]() { this->_before_energy_evaluation__update_contacts(stark); });
 	//stark.callbacks->newton->add_is_intermediate_state_valid([&]() { return this->_is_intermediate_state_valid(stark, false); });
 	stark.callbacks->newton->add_is_initial_state_valid([&]() { return this->_is_intermediate_state_valid(stark, true); });
@@ -51,7 +80,9 @@ EnergyFrictionalContactIPC::EnergyFrictionalContactIPC(Stark& stark, const spPoi
 	this->_energies_friction_deformables(stark);
 	this->_energies_friction_rb(stark);
 	this->_energies_friction_rb_deformables(stark);
+	this->_energies_ogc(stark);
 	this->broad_phase = std::make_unique<ipc::LBVH>();
+	this->ogc_collisions.set_collision_set_type(ipc::NormalCollisions::CollisionSetType::OGC);
 }
 
 /* ========================================================================================== */
@@ -61,6 +92,23 @@ EnergyFrictionalContactIPC::EnergyFrictionalContactIPC(Stark& stark, const spPoi
 EnergyFrictionalContactIPC::GlobalParams EnergyFrictionalContactIPC::get_global_params() const { return this->global_params; }
 void EnergyFrictionalContactIPC::set_global_params(const GlobalParams& params)
 {
+	if (this->configuration_locked
+		&& params.contact_method != this->global_params.contact_method) {
+		throw std::logic_error(
+			"EnergyFrictionalContactIPC: contact method cannot be changed after simulation initialization.");
+	}
+	if (params.contact_method == ContactMethod::OGC) {
+		if (!params.triangle_point_enabled || !params.edge_edge_enabled) {
+			throw std::invalid_argument(
+				"EnergyFrictionalContactIPC: OGC requires both triangle-point and edge-edge contact modes.");
+		}
+	}
+	if (params.contact_method != this->global_params.contact_method) {
+		this->ogc_trust_region.reset();
+		this->ogc_contacts.clear();
+	} else if (this->ogc_trust_region) {
+		this->ogc_trust_region->should_update_trust_region = true;
+	}
 	this->global_params = params;
 	this->contact_stiffness = params.min_contact_stiffness;
 }
@@ -109,6 +157,7 @@ void EnergyFrictionalContactIPC::set_contact_thickness(const Handler& obj, const
 	obj.exit_if_not_valid("EnergyFrictionalContactIPC::set_contact_thickness");
 	if (contact_thickness <= 0.0) { std::cout << "stark error: Contact thickness must be positive.\n"; exit(-1); }
 	this->contact_thicknesses[obj.get_idx()] = contact_thickness;
+	this->ogc_trust_region.reset();
 }
 void EnergyFrictionalContactIPC::set_friction(const Handler& obj0, const Handler& obj1, const double coulombs_coefficient)
 {
@@ -126,6 +175,8 @@ void EnergyFrictionalContactIPC::disable_collision(const Handler& obj0, const Ha
 	// a full geometry rebuild. The geometry didn't change, only the pair exclusion list.
 	if (!this->ipc_mesh_dirty)
 		this->_rebuild_collision_filter();
+	this->ogc_trust_region.reset();
+	this->ogc_contacts.clear();
 }
 void EnergyFrictionalContactIPC::enable_collision(const Handler& obj0, const Handler& obj1)
 {
@@ -135,6 +186,8 @@ void EnergyFrictionalContactIPC::enable_collision(const Handler& obj0, const Han
 	this->disabled_collision_pairs.erase(pair);
 	if (!this->ipc_mesh_dirty)
 		this->_rebuild_collision_filter();
+	this->ogc_trust_region.reset();
+	this->ogc_contacts.clear();
 }
 bool EnergyFrictionalContactIPC::is_collision_enabled(const Handler& obj0, const Handler& obj1)
 {
@@ -397,6 +450,16 @@ bool EnergyFrictionalContactIPC::_is_pair_disabled(int group_a, int group_b) con
 {
 	const std::array<int, 2> pair = { std::min(group_a, group_b), std::max(group_a, group_b) };
 	return this->disabled_collision_pairs.find(pair) != this->disabled_collision_pairs.end();
+}
+
+void EnergyFrictionalContactIPC::_validate_ogc_configuration() const
+{
+	if (this->global_params.contact_method != ContactMethod::OGC) return;
+	if (!this->global_params.triangle_point_enabled
+		|| !this->global_params.edge_edge_enabled) {
+		throw std::invalid_argument(
+			"EnergyFrictionalContactIPC: OGC requires both triangle-point and edge-edge contact modes.");
+	}
 }
 
 
@@ -797,6 +860,225 @@ void EnergyFrictionalContactIPC::_run_proximity_and_update_friction(Stark& stark
 	}
 }
 
+void EnergyFrictionalContactIPC::_run_ogc_proximity_and_update_friction(Stark& stark)
+{
+	this->_update_vertices_and_candidates(stark, 0.0);
+
+	ipc::NormalCollisions lagged_collisions;
+	lagged_collisions.set_collision_set_type(ipc::NormalCollisions::CollisionSetType::OGC);
+	const double max_thickness = *std::max_element(
+		this->contact_thicknesses.begin(), this->contact_thicknesses.end());
+	lagged_collisions.build(
+		this->ipc_candidates, this->ipc_mesh, this->V_combined,
+		2.0 * max_thickness, 0.0);
+
+	auto cache_point_point = [&](FrictionContact& contact, double mu, double fn,
+		int ga, int lva, int gb, int lvb) {
+		const auto& p = this->meshes[ga].vertices[lva];
+		const auto& q = this->meshes[gb].vertices[lvb];
+		contact.T.push_back(projection_matrix_point_point(p, q));
+		contact.mu.push_back(mu);
+		contact.fn.push_back(fn);
+	};
+	auto cache_point_edge = [&](FrictionPointEdge& friction, double mu, double fn,
+		int gv, int lv, int ge, int le0, int le1) {
+		const auto& p = this->meshes[gv].vertices[lv];
+		const auto& e0 = this->meshes[ge].vertices[le0];
+		const auto& e1 = this->meshes[ge].vertices[le1];
+		friction.bary.push_back(barycentric_point_edge(p, e0, e1));
+		friction.contact.T.push_back(projection_matrix_point_edge(p, e0, e1));
+		friction.contact.mu.push_back(mu);
+		friction.contact.fn.push_back(fn);
+	};
+	auto cache_point_triangle = [&](FrictionPointTriangle& friction, double mu, double fn,
+		int gv, int lv, int gf, int lt0, int lt1, int lt2) {
+		const auto& p = this->meshes[gv].vertices[lv];
+		const auto& t0 = this->meshes[gf].vertices[lt0];
+		const auto& t1 = this->meshes[gf].vertices[lt1];
+		const auto& t2 = this->meshes[gf].vertices[lt2];
+		friction.bary.push_back(barycentric_point_triangle(p, t0, t1, t2));
+		friction.contact.T.push_back(projection_matrix_triangle(t0, t1, t2));
+		friction.contact.mu.push_back(mu);
+		friction.contact.fn.push_back(fn);
+	};
+	auto cache_edge_edge = [&](FrictionEdgeEdge& friction, double mu, double fn,
+		int ga, int la0, int la1, int gb, int lb0, int lb1) {
+		const auto& a0 = this->meshes[ga].vertices[la0];
+		const auto& a1 = this->meshes[ga].vertices[la1];
+		const auto& b0 = this->meshes[gb].vertices[lb0];
+		const auto& b1 = this->meshes[gb].vertices[lb1];
+		friction.bary.push_back(barycentric_edge_edge(a0, a1, b0, b1));
+		friction.contact.T.push_back(projection_matrix_edge_edge(a0, a1, b0, b1));
+		friction.contact.mu.push_back(mu);
+		friction.contact.fn.push_back(fn);
+	};
+
+	auto append_vv = [&](int ga, int lva, int gb, int lvb, double mu, double fn) {
+		const int a = this->_local_to_ps_global_indices<1>(ga, {lva})[0];
+		const int b = this->_local_to_ps_global_indices<1>(gb, {lvb})[0];
+		const auto psa = this->meshes[ga].ps;
+		const auto psb = this->meshes[gb].ps;
+		if (psa == PhysicalSystem::Deformable && psb == PhysicalSystem::Deformable) {
+			this->friction_deformables.point_point.conn.numbered_push_back({a, b});
+			cache_point_point(this->friction_deformables.point_point.contact, mu, fn, ga, lva, gb, lvb);
+		} else if (psa == PhysicalSystem::Rigidbody && psb == PhysicalSystem::Rigidbody) {
+			this->friction_rb.point_point.conn.numbered_push_back(
+				{this->meshes[ga].idx_in_ps, this->meshes[gb].idx_in_ps, a, b});
+			cache_point_point(this->friction_rb.point_point.contact, mu, fn, ga, lva, gb, lvb);
+		} else if (psa == PhysicalSystem::Rigidbody) {
+			this->friction_rb_deformables.point_point.conn.numbered_push_back(
+				{this->meshes[ga].idx_in_ps, a, b});
+			cache_point_point(this->friction_rb_deformables.point_point.contact, mu, fn, ga, lva, gb, lvb);
+		} else {
+			this->friction_rb_deformables.point_point.conn.numbered_push_back(
+				{this->meshes[gb].idx_in_ps, b, a});
+			cache_point_point(this->friction_rb_deformables.point_point.contact, mu, fn, gb, lvb, ga, lva);
+		}
+	};
+
+	auto append_ev = [&](int gv, int lv, int ge, int le0, int le1, double mu, double fn) {
+		const int p = this->_local_to_ps_global_indices<1>(gv, {lv})[0];
+		const auto e = this->_local_to_ps_global_indices<2>(ge, {le0, le1});
+		const auto psv = this->meshes[gv].ps;
+		const auto pse = this->meshes[ge].ps;
+		if (psv == PhysicalSystem::Deformable && pse == PhysicalSystem::Deformable) {
+			this->friction_deformables.point_edge.conn.numbered_push_back({p, e[0], e[1]});
+			cache_point_edge(this->friction_deformables.point_edge.data, mu, fn, gv, lv, ge, le0, le1);
+		} else if (psv == PhysicalSystem::Rigidbody && pse == PhysicalSystem::Rigidbody) {
+			this->friction_rb.point_edge.conn.numbered_push_back(
+				{this->meshes[gv].idx_in_ps, this->meshes[ge].idx_in_ps, p, e[0], e[1]});
+			cache_point_edge(this->friction_rb.point_edge.data, mu, fn, gv, lv, ge, le0, le1);
+		} else if (psv == PhysicalSystem::Rigidbody) {
+			this->friction_rb_deformables.point_edge.conn.numbered_push_back(
+				{this->meshes[gv].idx_in_ps, p, e[0], e[1]});
+			cache_point_edge(this->friction_rb_deformables.point_edge.data, mu, fn, gv, lv, ge, le0, le1);
+		} else {
+			this->friction_rb_deformables.edge_point.conn.numbered_push_back(
+				{this->meshes[ge].idx_in_ps, e[0], e[1], p});
+			cache_point_edge(this->friction_rb_deformables.edge_point.data, mu, fn, gv, lv, ge, le0, le1);
+		}
+	};
+
+	auto append_fv = [&](int gv, int lv, int gf, int lt0, int lt1, int lt2, double mu, double fn) {
+		const int p = this->_local_to_ps_global_indices<1>(gv, {lv})[0];
+		const auto t = this->_local_to_ps_global_indices<3>(gf, {lt0, lt1, lt2});
+		const auto psv = this->meshes[gv].ps;
+		const auto psf = this->meshes[gf].ps;
+		if (psv == PhysicalSystem::Deformable && psf == PhysicalSystem::Deformable) {
+			this->friction_deformables.point_triangle.conn.numbered_push_back({p, t[0], t[1], t[2]});
+			cache_point_triangle(this->friction_deformables.point_triangle.data, mu, fn, gv, lv, gf, lt0, lt1, lt2);
+		} else if (psv == PhysicalSystem::Rigidbody && psf == PhysicalSystem::Rigidbody) {
+			this->friction_rb.point_triangle.conn.numbered_push_back(
+				{this->meshes[gv].idx_in_ps, this->meshes[gf].idx_in_ps, p, t[0], t[1], t[2]});
+			cache_point_triangle(this->friction_rb.point_triangle.data, mu, fn, gv, lv, gf, lt0, lt1, lt2);
+		} else if (psv == PhysicalSystem::Rigidbody) {
+			this->friction_rb_deformables.point_triangle.conn.numbered_push_back(
+				{this->meshes[gv].idx_in_ps, p, t[0], t[1], t[2]});
+			cache_point_triangle(this->friction_rb_deformables.point_triangle.data, mu, fn, gv, lv, gf, lt0, lt1, lt2);
+		} else {
+			this->friction_rb_deformables.triangle_point.conn.numbered_push_back(
+				{this->meshes[gf].idx_in_ps, t[0], t[1], t[2], p});
+			cache_point_triangle(this->friction_rb_deformables.triangle_point.data, mu, fn, gv, lv, gf, lt0, lt1, lt2);
+		}
+	};
+
+	auto append_ee = [&](int ga, int la0, int la1, int gb, int lb0, int lb1, double mu, double fn) {
+		const auto a = this->_local_to_ps_global_indices<2>(ga, {la0, la1});
+		const auto b = this->_local_to_ps_global_indices<2>(gb, {lb0, lb1});
+		const auto psa = this->meshes[ga].ps;
+		const auto psb = this->meshes[gb].ps;
+		if (psa == PhysicalSystem::Deformable && psb == PhysicalSystem::Deformable) {
+			this->friction_deformables.edge_edge.conn.numbered_push_back({a[0], a[1], b[0], b[1]});
+			cache_edge_edge(this->friction_deformables.edge_edge.data, mu, fn, ga, la0, la1, gb, lb0, lb1);
+		} else if (psa == PhysicalSystem::Rigidbody && psb == PhysicalSystem::Rigidbody) {
+			this->friction_rb.edge_edge.conn.numbered_push_back(
+				{this->meshes[ga].idx_in_ps, this->meshes[gb].idx_in_ps, a[0], a[1], b[0], b[1]});
+			cache_edge_edge(this->friction_rb.edge_edge.data, mu, fn, ga, la0, la1, gb, lb0, lb1);
+		} else if (psa == PhysicalSystem::Rigidbody) {
+			this->friction_rb_deformables.edge_edge.conn.numbered_push_back(
+				{this->meshes[ga].idx_in_ps, a[0], a[1], b[0], b[1]});
+			cache_edge_edge(this->friction_rb_deformables.edge_edge.data, mu, fn, ga, la0, la1, gb, lb0, lb1);
+		} else {
+			this->friction_rb_deformables.edge_edge.conn.numbered_push_back(
+				{this->meshes[gb].idx_in_ps, b[0], b[1], a[0], a[1]});
+			cache_edge_edge(this->friction_rb_deformables.edge_edge.data, mu, fn, gb, lb0, lb1, ga, la0, la1);
+		}
+	};
+
+	const double k = this->contact_stiffness;
+	for (const auto& collision : lagged_collisions.vv_collisions) {
+		const int ga = this->_vertex_to_group(collision.vertex0_id);
+		const int gb = this->_vertex_to_group(collision.vertex1_id);
+		if (this->_is_pair_disabled(ga, gb)) continue;
+		const double mu = this->_get_friction(ga, gb);
+		if (mu == 0.0) continue;
+		const int la = collision.vertex0_id - this->vertex_offsets[ga];
+		const int lb = collision.vertex1_id - this->vertex_offsets[gb];
+		const double dhat = this->_get_contact_distance(ga, gb);
+		const double d = (this->meshes[ga].vertices[la] - this->meshes[gb].vertices[lb]).norm();
+		if (d >= dhat) continue;
+		append_vv(ga, la, gb, lb, mu, collision.weight * this->_barrier_force(d, dhat, k));
+	}
+
+	for (const auto& collision : lagged_collisions.ev_collisions) {
+		const int gv = this->_vertex_to_group(collision.vertex_id);
+		const int ge = this->_edge_to_group(collision.edge_id);
+		if (this->_is_pair_disabled(gv, ge)) continue;
+		const double mu = this->_get_friction(gv, ge);
+		if (mu == 0.0) continue;
+		const int lv = collision.vertex_id - this->vertex_offsets[gv];
+		const int le = collision.edge_id - this->edge_offsets[ge];
+		const auto& edge = this->meshes[ge].loc_edges[le];
+		const double dhat = this->_get_contact_distance(gv, ge);
+		const double d = std::sqrt(std::max(0.0, ipc::point_edge_distance(
+			this->meshes[gv].vertices[lv], this->meshes[ge].vertices[edge[0]],
+			this->meshes[ge].vertices[edge[1]], ipc::PointEdgeDistanceType::P_E)));
+		if (d >= dhat) continue;
+		append_ev(gv, lv, ge, edge[0], edge[1], mu,
+			collision.weight * this->_barrier_force(d, dhat, k));
+	}
+
+	for (const auto& collision : lagged_collisions.fv_collisions) {
+		const int gv = this->_vertex_to_group(collision.vertex_id);
+		const int gf = this->_tri_to_group(collision.face_id);
+		if (this->_is_pair_disabled(gv, gf)) continue;
+		const double mu = this->_get_friction(gv, gf);
+		if (mu == 0.0) continue;
+		const int lv = collision.vertex_id - this->vertex_offsets[gv];
+		const int lf = collision.face_id - this->tri_offsets[gf];
+		const auto& face = this->meshes[gf].loc_triangles[lf];
+		const double dhat = this->_get_contact_distance(gv, gf);
+		const double d = std::sqrt(std::max(0.0, ipc::point_triangle_distance(
+			this->meshes[gv].vertices[lv], this->meshes[gf].vertices[face[0]],
+			this->meshes[gf].vertices[face[1]], this->meshes[gf].vertices[face[2]],
+			ipc::PointTriangleDistanceType::P_T)));
+		if (d >= dhat) continue;
+		append_fv(gv, lv, gf, face[0], face[1], face[2], mu,
+			collision.weight * this->_barrier_force(d, dhat, k));
+	}
+
+	for (const auto& collision : lagged_collisions.ee_collisions) {
+		const int ga = this->_edge_to_group(collision.edge0_id);
+		const int gb = this->_edge_to_group(collision.edge1_id);
+		if (this->_is_pair_disabled(ga, gb)) continue;
+		const double mu = this->_get_friction(ga, gb);
+		if (mu == 0.0) continue;
+		const auto& a = this->meshes[ga].loc_edges[collision.edge0_id - this->edge_offsets[ga]];
+		const auto& b = this->meshes[gb].loc_edges[collision.edge1_id - this->edge_offsets[gb]];
+		const auto& a0 = this->meshes[ga].vertices[a[0]];
+		const auto& a1 = this->meshes[ga].vertices[a[1]];
+		const auto& b0 = this->meshes[gb].vertices[b[0]];
+		const auto& b1 = this->meshes[gb].vertices[b[1]];
+		if ((a1 - a0).cross(b1 - b0).squaredNorm() < collision.eps_x) continue;
+		const double dhat = this->_get_contact_distance(ga, gb);
+		const double d = std::sqrt(std::max(0.0,
+			ipc::edge_edge_distance(a0, a1, b0, b1, collision.dtype)));
+		if (d >= dhat) continue;
+		append_ee(ga, a[0], a[1], gb, b[0], b[1], mu,
+			collision.weight * this->_barrier_force(d, dhat, k));
+	}
+}
+
 
 /* ========================================================================================== */
 /* ===================================  SYMX CALLBACKS  ===================================== */
@@ -804,6 +1086,7 @@ void EnergyFrictionalContactIPC::_run_proximity_and_update_friction(Stark& stark
 
 void EnergyFrictionalContactIPC::_before_energy_evaluation__update_contacts(Stark& stark)
 {
+	if (this->global_params.contact_method == ContactMethod::OGC) return;
 	if (!this->global_params.collisions_enabled) return;
 	if (this->is_empty()) return;
 	this->_run_proximity_and_update_contacts(stark, stark.dt);
@@ -811,6 +1094,17 @@ void EnergyFrictionalContactIPC::_before_energy_evaluation__update_contacts(Star
 
 void EnergyFrictionalContactIPC::_before_time_step__update_friction_contacts(Stark& stark)
 {
+	if (this->global_params.contact_method == ContactMethod::OGC) {
+		if (this->ogc_trust_region) this->ogc_trust_region->should_update_trust_region = true;
+		this->friction_deformables.clear();
+		this->friction_rb.clear();
+		this->friction_rb_deformables.clear();
+		if (!this->global_params.collisions_enabled) return;
+		if (!this->global_params.friction_enabled) return;
+		if (this->is_empty()) return;
+		this->_run_ogc_proximity_and_update_friction(stark);
+		return;
+	}
 	if (!this->global_params.collisions_enabled) return;
 	if (!this->global_params.friction_enabled) return;
 	if (this->is_empty()) return;
@@ -872,6 +1166,8 @@ bool EnergyFrictionalContactIPC::_should_continue_execution(Stark& stark)
 
 double EnergyFrictionalContactIPC::_ccd_max_allowed_step(Stark& stark, const Eigen::VectorXd& x, const Eigen::VectorXd& du)
 {
+	if (this->global_params.contact_method == ContactMethod::OGC
+		&& !this->ogc_use_ccd_for_step) return 1.0;
 	if (!this->global_params.collisions_enabled) return 1.0;
 	if (this->is_empty()) return 1.0;
 	if (this->ipc_mesh_dirty) return 1.0; // mesh not yet built
@@ -935,6 +1231,357 @@ double EnergyFrictionalContactIPC::_ccd_max_allowed_step(Stark& stark, const Eig
 
 	const double max_step = ipc::compute_collision_free_stepsize(this->ipc_mesh, V0, V1, 0, this->broad_phase.get());
 	return max_step;
+}
+
+double EnergyFrictionalContactIPC::_filter_ogc_step(
+	Stark& stark,
+	const Eigen::VectorXd& x,
+	Eigen::VectorXd& du)
+{
+	(void)x;
+	this->ogc_use_ccd_for_step = false;
+	if (this->global_params.contact_method != ContactMethod::OGC) return 1.0;
+	if (!this->global_params.collisions_enabled || this->is_empty()) return 1.0;
+	if (!this->ogc_trust_region || this->ipc_mesh_dirty) return 1.0;
+
+	int v1_offset = -1;
+	int rv1_offset = -1;
+	int rw1_offset = -1;
+	const auto& offsets = stark.global_potential->get_dofs_offsets();
+	const int n_sets = stark.global_potential->get_n_dof_sets();
+	for (int i = 0; i < n_sets; ++i) {
+		const std::string label = stark.global_potential->get_dof_label(i);
+		if (label == "soft.v1") v1_offset = offsets[i];
+		else if (label == "rigid.v1") rv1_offset = offsets[i];
+		else if (label == "rigid.w1") rw1_offset = offsets[i];
+	}
+
+	const Eigen::MatrixXd V0 = this->V_combined;
+	Eigen::MatrixXd V1 = V0;
+	const double dt = stark.dt;
+
+	for (int g = 0; g < (int)this->meshes.size(); ++g) {
+		const int voff = this->vertex_offsets[g];
+		const int n = (int)this->meshes[g].vertices.size();
+		if (this->meshes[g].ps == PhysicalSystem::Deformable && v1_offset >= 0) {
+			const DeformableBookkeeping& bk = this->group_to_deformable_bookkeeping[g];
+			for (int i = 0; i < n; ++i) {
+				const int global = this->dyn->get_global_index(
+					this->meshes[g].idx_in_ps, bk.point_set_map[i]);
+				V1.row(voff + i) += (dt * du.segment<3>(v1_offset + 3 * global)).transpose();
+			}
+		} else if (
+			this->meshes[g].ps == PhysicalSystem::Rigidbody
+			&& rv1_offset >= 0 && rw1_offset >= 0) {
+			const int rb_idx = this->meshes[g].idx_in_ps;
+			const Eigen::Vector3d v1_new =
+				this->rb->v1[rb_idx] + du.segment<3>(rv1_offset + 3 * rb_idx);
+			const Eigen::Vector3d w1_new =
+				this->rb->w1[rb_idx] + du.segment<3>(rw1_offset + 3 * rb_idx);
+			const Eigen::Vector3d t1_new = time_integration(this->rb->t0[rb_idx], v1_new, dt);
+			const Eigen::Matrix3d R1_new =
+				quat_time_integration(this->rb->q0[rb_idx], w1_new, dt).toRotationMatrix();
+			const RigidBodyBookkeeping& bk = this->group_to_rigidbody_bookkeeping[g];
+			for (int i = 0; i < n; ++i) {
+				V1.row(voff + i) = local_to_global_point(
+					this->rigidbody_local_vertices.get(bk.rb_collision_group, i),
+					R1_new, t1_new).transpose();
+			}
+		}
+	}
+
+	const Eigen::MatrixXd raw_dx = V1 - V0;
+	const double proposed_query_radius = raw_dx.rowwise().norm().maxCoeff();
+	int max_displacement_group = -1;
+	double max_group_displacement = -1.0;
+	for (int g = 0; g < (int)this->meshes.size(); ++g) {
+		const int begin = this->vertex_offsets[g];
+		const int count = (int)this->meshes[g].vertices.size();
+		const double group_displacement = raw_dx.middleRows(begin, count).rowwise().norm().maxCoeff();
+		if (group_displacement > max_group_displacement) {
+			max_group_displacement = group_displacement;
+			max_displacement_group = g;
+		}
+	}
+	const double max_query_radius = std::max(
+		this->ogc_trust_region->trust_region_inflation_radius,
+		this->global_params.ogc_max_query_radius);
+	this->ogc_use_ccd_for_step = proposed_query_radius > max_query_radius;
+	stark.context->logger->append(
+		"ogc_ccd_fallback", this->ogc_use_ccd_for_step ? 1 : 0);
+	if (this->ogc_use_ccd_for_step) {
+		// A global OGC query sized from one large Newton correction is especially
+		// expensive for localized motion on a dense collision mesh. Keep the
+		// current OGC set and let swept CCD scale this direction instead. The
+		// collision set is rebuilt around the accepted state next iteration.
+		this->ogc_trust_region->should_update_trust_region = true;
+		stark.context->logger->add_and_append("ogc_restricted_vertices", 0);
+		stark.context->logger->add_and_append("ogc_restricted_dof_blocks", 0);
+		stark.context->logger->add_and_append(
+			"ogc_query_radius", this->ogc_trust_region->trust_region_inflation_radius);
+		stark.context->output->print_with_new_line(fmt::format(
+			"OGC filter | query: {:.3e} | proposed: {:.3e} | mode: swept CCD | max group: {}",
+			this->ogc_trust_region->trust_region_inflation_radius,
+			proposed_query_radius,
+			max_displacement_group), symx::Verbosity::Full);
+		return 1.0;
+	}
+	const double bounded_query_radius = std::min(proposed_query_radius, max_query_radius);
+	if (bounded_query_radius > this->ogc_trust_region->trust_region_inflation_radius) {
+		// IPC Toolkit normally derives the query radius from predicted motion.
+		// STARK starts Newton from zero velocity, so the first direction is the
+		// available prediction. Bound its global radius: using the full maximum
+		// displacement on a dense mesh can create an impractically large candidate
+		// set. The current step remains inside the old region; the next iteration
+		// rebuilds with the larger, bounded radius.
+		this->ogc_trust_region->trust_region_inflation_radius = bounded_query_radius;
+		this->ogc_trust_region->should_update_trust_region = true;
+	}
+	Eigen::MatrixXd filtered_dx = raw_dx;
+	this->ogc_trust_region->filter_step(this->ipc_mesh, V0, filtered_dx);
+
+	std::vector<double> deformable_beta(this->dyn->size(), 1.0);
+	std::vector<double> rigid_beta(this->rb->get_n_bodies(), 1.0);
+	int restricted_vertices = 0;
+	for (int g = 0; g < (int)this->meshes.size(); ++g) {
+		const int voff = this->vertex_offsets[g];
+		const int n = (int)this->meshes[g].vertices.size();
+		for (int i = 0; i < n; ++i) {
+			const double raw_norm = raw_dx.row(voff + i).norm();
+			if (raw_norm <= 1e-15) continue;
+			const double beta = std::clamp(
+				filtered_dx.row(voff + i).norm() / raw_norm, 0.0, 1.0);
+			if (beta < 1.0 - 1e-12) ++restricted_vertices;
+			if (this->meshes[g].ps == PhysicalSystem::Deformable) {
+				const DeformableBookkeeping& bk = this->group_to_deformable_bookkeeping[g];
+				const int global = this->dyn->get_global_index(
+					this->meshes[g].idx_in_ps, bk.point_set_map[i]);
+				deformable_beta[global] = std::min(deformable_beta[global], beta);
+			} else {
+				const int rb_idx = this->meshes[g].idx_in_ps;
+				rigid_beta[rb_idx] = std::min(rigid_beta[rb_idx], beta);
+			}
+		}
+	}
+
+	double min_beta = 1.0;
+	int restricted_blocks = 0;
+	if (v1_offset >= 0) {
+		for (int i = 0; i < (int)deformable_beta.size(); ++i) {
+			const double beta = deformable_beta[i];
+			if (beta >= 1.0) continue;
+			du.segment<3>(v1_offset + 3 * i) *= beta;
+			min_beta = std::min(min_beta, beta);
+			++restricted_blocks;
+		}
+	}
+
+	if (rv1_offset >= 0 && rw1_offset >= 0) {
+		for (int rb_idx = 0; rb_idx < (int)rigid_beta.size(); ++rb_idx) {
+			double beta = rigid_beta[rb_idx];
+			if (beta >= 1.0) continue;
+
+			// Scaling angular generalized coordinates is only approximately the
+			// same as scaling vertex displacement. Tighten until the exact rigid
+			// transform lies inside every associated vertex trust region.
+			for (int attempt = 0; attempt < 60; ++attempt) {
+				const Eigen::Vector3d v1_new = this->rb->v1[rb_idx]
+					+ beta * du.segment<3>(rv1_offset + 3 * rb_idx);
+				const Eigen::Vector3d w1_new = this->rb->w1[rb_idx]
+					+ beta * du.segment<3>(rw1_offset + 3 * rb_idx);
+				const Eigen::Vector3d t1_new = time_integration(this->rb->t0[rb_idx], v1_new, dt);
+				const Eigen::Matrix3d R1_new =
+					quat_time_integration(this->rb->q0[rb_idx], w1_new, dt).toRotationMatrix();
+				bool safe = true;
+				for (int g = 0; g < (int)this->meshes.size() && safe; ++g) {
+					if (this->meshes[g].ps != PhysicalSystem::Rigidbody
+						|| this->meshes[g].idx_in_ps != rb_idx) continue;
+					const RigidBodyBookkeeping& bk = this->group_to_rigidbody_bookkeeping[g];
+					for (int i = 0; i < (int)this->meshes[g].vertices.size(); ++i) {
+						const int vertex = this->vertex_offsets[g] + i;
+						const Eigen::Vector3d position = local_to_global_point(
+							this->rigidbody_local_vertices.get(bk.rb_collision_group, i),
+							R1_new, t1_new);
+						if ((position - this->ogc_trust_region->trust_region_centers.row(vertex).transpose()).norm()
+							> this->ogc_trust_region->trust_region_radii[vertex] + 1e-10) {
+							safe = false;
+							break;
+						}
+					}
+				}
+				if (safe) break;
+				beta *= 0.5;
+			}
+
+			du.segment<3>(rv1_offset + 3 * rb_idx) *= beta;
+			du.segment<3>(rw1_offset + 3 * rb_idx) *= beta;
+			min_beta = std::min(min_beta, beta);
+			++restricted_blocks;
+		}
+	}
+
+	stark.context->logger->add_and_append("ogc_restricted_vertices", restricted_vertices);
+	stark.context->logger->add_and_append("ogc_restricted_dof_blocks", restricted_blocks);
+	stark.context->logger->add_and_append(
+		"ogc_query_radius", this->ogc_trust_region->trust_region_inflation_radius);
+	std::string max_group_label = "unknown";
+	if (max_displacement_group >= 0) {
+		const ContactMesh& mesh = this->meshes[max_displacement_group];
+		if (mesh.ps == PhysicalSystem::Deformable
+			&& mesh.idx_in_ps >= 0 && mesh.idx_in_ps < (int)this->dyn->labels.size()) {
+			max_group_label = this->dyn->labels[mesh.idx_in_ps];
+		} else if (mesh.ps == PhysicalSystem::Rigidbody
+			&& mesh.idx_in_ps >= 0 && mesh.idx_in_ps < (int)this->rb->labels.size()) {
+			max_group_label = this->rb->labels[mesh.idx_in_ps];
+		}
+	}
+	stark.context->output->print_with_new_line(fmt::format(
+		"OGC filter | query: {:.3e} | proposed: {:.3e} | restricted: {}/{} vertices, {} blocks | min beta: {:.3e} | next rebuild: {} | max group: {} ({})",
+		this->ogc_trust_region->trust_region_inflation_radius,
+		proposed_query_radius,
+		restricted_vertices,
+		this->ipc_mesh.num_vertices(),
+		restricted_blocks,
+		min_beta,
+		this->ogc_trust_region->should_update_trust_region ? "yes" : "no",
+		max_displacement_group,
+		max_group_label), symx::Verbosity::Full);
+	return min_beta;
+}
+
+void EnergyFrictionalContactIPC::_before_newton_step__update_ogc_contacts(Stark& stark)
+{
+	if (this->global_params.contact_method != ContactMethod::OGC) return;
+	if (!this->global_params.collisions_enabled || this->is_empty()) return;
+
+	this->_update_vertices(stark, stark.dt);
+	if (this->ipc_mesh_dirty) this->_build_ipc_mesh();
+	this->_update_combined_V();
+
+	const double max_thickness = *std::max_element(this->contact_thicknesses.begin(), this->contact_thicknesses.end());
+	const double query_distance = 2.0 * max_thickness;
+	const bool rebuild_requested = !this->ogc_trust_region
+		|| this->ogc_trust_region->should_update_trust_region;
+	if (!this->ogc_trust_region) {
+		this->ogc_trust_region = std::make_unique<ipc::ogc::TrustRegion>(query_distance);
+	}
+	this->ogc_trust_region->relaxed_radius_scaling = this->global_params.ogc_relaxed_radius_scaling;
+	this->ogc_trust_region->update_threshold = this->global_params.ogc_update_threshold;
+	this->ogc_trust_region->update_if_needed(
+		this->ipc_mesh, this->V_combined, this->ogc_collisions, 0.0, this->broad_phase.get());
+	this->_populate_ogc_contacts();
+
+	stark.context->logger->add_and_append("ogc_vv", (double)this->ogc_collisions.vv_collisions.size());
+	stark.context->logger->add_and_append("ogc_ev", (double)this->ogc_collisions.ev_collisions.size());
+	stark.context->logger->add_and_append("ogc_ee", (double)this->ogc_collisions.ee_collisions.size());
+	stark.context->logger->add_and_append("ogc_fv", (double)this->ogc_collisions.fv_collisions.size());
+	stark.context->output->print_with_new_line(fmt::format(
+		"OGC set    | rebuilt: {} | candidates: {} | contacts (vv/ev/ee/fv): {}/{}/{}/{}",
+		rebuild_requested ? "yes" : "no",
+		this->ogc_trust_region->candidates.size(),
+		this->ogc_collisions.vv_collisions.size(),
+		this->ogc_collisions.ev_collisions.size(),
+		this->ogc_collisions.ee_collisions.size(),
+		this->ogc_collisions.fv_collisions.size()), symx::Verbosity::Full);
+}
+
+void EnergyFrictionalContactIPC::_populate_ogc_contacts()
+{
+	this->ogc_contacts.clear();
+
+	auto vertex_info = [&](int vertex_id) {
+		const int group = this->_vertex_to_group(vertex_id);
+		const int local = vertex_id - this->vertex_offsets[group];
+		const int global = this->_local_to_ps_global_indices<1>(group, {local})[0];
+		return std::array<int, 3>{group, local, global};
+	};
+	auto edge_info = [&](int edge_id) {
+		const int group = this->_edge_to_group(edge_id);
+		const int local = edge_id - this->edge_offsets[group];
+		const auto global = this->_local_to_ps_global_indices<2>(group, this->meshes[group].loc_edges[local]);
+		return std::tuple<int, int, int>{group, global[0], global[1]};
+	};
+	auto face_info = [&](int face_id) {
+		const int group = this->_tri_to_group(face_id);
+		const int local = face_id - this->tri_offsets[group];
+		const auto global = this->_local_to_ps_global_indices<3>(group, this->meshes[group].loc_triangles[local]);
+		return std::tuple<int, int, int, int>{group, global[0], global[1], global[2]};
+	};
+
+	for (const auto& collision : this->ogc_collisions.vv_collisions) {
+		auto a = vertex_info(collision.vertex0_id);
+		auto b = vertex_info(collision.vertex1_id);
+		const auto psa = this->meshes[a[0]].ps;
+		const auto psb = this->meshes[b[0]].ps;
+		if (psa == PhysicalSystem::Deformable && psb == PhysicalSystem::Deformable) {
+			this->ogc_contacts.deformable.vv.push_back({a[0], b[0], a[2], b[2]}, collision.weight);
+		} else if (psa == PhysicalSystem::Rigidbody && psb == PhysicalSystem::Rigidbody) {
+			this->ogc_contacts.rigid_body.vv.push_back({a[0], b[0], this->meshes[a[0]].idx_in_ps, this->meshes[b[0]].idx_in_ps, a[2], b[2]}, collision.weight);
+		} else if (psa == PhysicalSystem::Rigidbody) {
+			this->ogc_contacts.mixed.vv.push_back({a[0], b[0], this->meshes[a[0]].idx_in_ps, a[2], b[2]}, collision.weight);
+		} else {
+			this->ogc_contacts.mixed.vv.push_back({b[0], a[0], this->meshes[b[0]].idx_in_ps, b[2], a[2]}, collision.weight);
+		}
+	}
+
+	for (const auto& collision : this->ogc_collisions.ev_collisions) {
+		auto v = vertex_info(collision.vertex_id);
+		auto [eg, e0, e1] = edge_info(collision.edge_id);
+		const auto psv = this->meshes[v[0]].ps;
+		const auto pse = this->meshes[eg].ps;
+		if (psv == PhysicalSystem::Deformable && pse == PhysicalSystem::Deformable) {
+			this->ogc_contacts.deformable.ev.push_back({v[0], eg, v[2], e0, e1}, collision.weight);
+		} else if (psv == PhysicalSystem::Rigidbody && pse == PhysicalSystem::Rigidbody) {
+			this->ogc_contacts.rigid_body.ev.push_back({v[0], eg, this->meshes[v[0]].idx_in_ps, this->meshes[eg].idx_in_ps, v[2], e0, e1}, collision.weight);
+		} else if (psv == PhysicalSystem::Rigidbody) {
+			this->ogc_contacts.mixed.rb_vertex_d_edge.push_back({v[0], eg, this->meshes[v[0]].idx_in_ps, v[2], e0, e1}, collision.weight);
+		} else {
+			this->ogc_contacts.mixed.d_vertex_rb_edge.push_back({v[0], eg, this->meshes[eg].idx_in_ps, v[2], e0, e1}, collision.weight);
+		}
+	}
+
+	for (const auto& collision : this->ogc_collisions.ee_collisions) {
+		auto [ga, a0, a1] = edge_info(collision.edge0_id);
+		auto [gb, b0, b1] = edge_info(collision.edge1_id);
+		const auto psa = this->meshes[ga].ps;
+		const auto psb = this->meshes[gb].ps;
+		if (psa == PhysicalSystem::Deformable && psb == PhysicalSystem::Deformable) {
+			this->ogc_contacts.deformable.ee.get(collision.dtype).push_back({ga, gb, a0, a1, b0, b1}, collision.weight);
+		} else if (psa == PhysicalSystem::Rigidbody && psb == PhysicalSystem::Rigidbody) {
+			this->ogc_contacts.rigid_body.ee.get(collision.dtype).push_back({ga, gb, this->meshes[ga].idx_in_ps, this->meshes[gb].idx_in_ps, a0, a1, b0, b1}, collision.weight);
+		} else if (psa == PhysicalSystem::Rigidbody) {
+			this->ogc_contacts.mixed.ee.get(collision.dtype).push_back({ga, gb, this->meshes[ga].idx_in_ps, a0, a1, b0, b1}, collision.weight);
+		} else {
+			using EE = ipc::EdgeEdgeDistanceType;
+			EE swapped_type = collision.dtype;
+			switch (collision.dtype) {
+				case EE::EA_EB0: swapped_type = EE::EA0_EB; break;
+				case EE::EA_EB1: swapped_type = EE::EA1_EB; break;
+				case EE::EA0_EB: swapped_type = EE::EA_EB0; break;
+				case EE::EA1_EB: swapped_type = EE::EA_EB1; break;
+				case EE::EA0_EB1: swapped_type = EE::EA1_EB0; break;
+				case EE::EA1_EB0: swapped_type = EE::EA0_EB1; break;
+				default: break;
+			}
+			this->ogc_contacts.mixed.ee.get(swapped_type).push_back({gb, ga, this->meshes[gb].idx_in_ps, b0, b1, a0, a1}, collision.weight);
+		}
+	}
+
+	for (const auto& collision : this->ogc_collisions.fv_collisions) {
+		auto v = vertex_info(collision.vertex_id);
+		auto [fg, t0, t1, t2] = face_info(collision.face_id);
+		const auto psv = this->meshes[v[0]].ps;
+		const auto psf = this->meshes[fg].ps;
+		if (psv == PhysicalSystem::Deformable && psf == PhysicalSystem::Deformable) {
+			this->ogc_contacts.deformable.fv.push_back({v[0], fg, v[2], t0, t1, t2}, collision.weight);
+		} else if (psv == PhysicalSystem::Rigidbody && psf == PhysicalSystem::Rigidbody) {
+			this->ogc_contacts.rigid_body.fv.push_back({v[0], fg, this->meshes[v[0]].idx_in_ps, this->meshes[fg].idx_in_ps, v[2], t0, t1, t2}, collision.weight);
+		} else if (psv == PhysicalSystem::Rigidbody) {
+			this->ogc_contacts.mixed.rb_vertex_d_face.push_back({v[0], fg, this->meshes[v[0]].idx_in_ps, v[2], t0, t1, t2}, collision.weight);
+		} else {
+			this->ogc_contacts.mixed.d_vertex_rb_face.push_back({v[0], fg, this->meshes[fg].idx_in_ps, v[2], t0, t1, t2}, collision.weight);
+		}
+	}
 }
 
 
@@ -1264,6 +1911,140 @@ void EnergyFrictionalContactIPC::_energies_friction_rb_deformables(Stark& stark)
 		});
 }
 
+void EnergyFrictionalContactIPC::_energies_ogc(Stark& stark)
+{
+	auto add_deformable = [&](const std::string& label, auto& weighted_conn, auto distance) {
+		auto* weights = &weighted_conn.weights;
+		stark.global_potential->add_potential(label, weighted_conn.conn,
+			[&, distance, weights](MappedWorkspace<double>& mws, Element& conn) {
+				return this->_ogc_barrier_potential(
+					mws, distance(mws, conn), conn["idx"], conn["group_a"], conn["group_b"], *weights);
+			});
+		};
+	auto add_edge_edge = [&](const std::string& prefix, auto& edge_edge, auto get_edges) {
+		auto add = [&](const std::string& suffix, auto& weighted_conn, auto distance) {
+			auto* weights = &weighted_conn.weights;
+			stark.global_potential->add_potential(prefix + suffix, weighted_conn.conn,
+				[&, get_edges, distance, weights](MappedWorkspace<double>& mws, Element& conn) {
+					auto [ea, eb, ea_rest, eb_rest] = get_edges(mws, conn);
+					auto out = this->_ogc_barrier_potential(
+						mws, distance(ea, eb), conn["idx"], conn["group_a"], conn["group_b"], *weights);
+					out.first *= this->_edge_edge_mollifier(ea, eb, ea_rest, eb_rest);
+					return out;
+				});
+		};
+		add("ea0_eb0", edge_edge.ea0_eb0, [](const auto& ea, const auto& eb) { return distance_point_point(ea[0], eb[0]); });
+		add("ea0_eb1", edge_edge.ea0_eb1, [](const auto& ea, const auto& eb) { return distance_point_point(ea[0], eb[1]); });
+		add("ea1_eb0", edge_edge.ea1_eb0, [](const auto& ea, const auto& eb) { return distance_point_point(ea[1], eb[0]); });
+		add("ea1_eb1", edge_edge.ea1_eb1, [](const auto& ea, const auto& eb) { return distance_point_point(ea[1], eb[1]); });
+		add("ea_eb0", edge_edge.ea_eb0, [](const auto& ea, const auto& eb) { return distance_point_line(eb[0], ea[0], ea[1]); });
+		add("ea_eb1", edge_edge.ea_eb1, [](const auto& ea, const auto& eb) { return distance_point_line(eb[1], ea[0], ea[1]); });
+		add("ea0_eb", edge_edge.ea0_eb, [](const auto& ea, const auto& eb) { return distance_point_line(ea[0], eb[0], eb[1]); });
+		add("ea1_eb", edge_edge.ea1_eb, [](const auto& ea, const auto& eb) { return distance_point_line(ea[1], eb[0], eb[1]); });
+		add("ea_eb", edge_edge.ea_eb, [](const auto& ea, const auto& eb) { return distance_line_line(ea[0], ea[1], eb[0], eb[1]); });
+	};
+
+	add_deformable("ogc_contact_d_d_vv", this->ogc_contacts.deformable.vv,
+		[&](MappedWorkspace<double>& mws, Element& conn) {
+			auto x = this->_get_d_x1(mws, stark, {conn["p"], conn["q"]});
+			return distance_point_point(x[0], x[1]);
+		});
+	add_deformable("ogc_contact_d_d_ev", this->ogc_contacts.deformable.ev,
+		[&](MappedWorkspace<double>& mws, Element& conn) {
+			auto x = this->_get_d_x1(mws, stark, {conn["p"], conn["e0"], conn["e1"]});
+			return distance_point_line(x[0], x[1], x[2]);
+		});
+	add_deformable("ogc_contact_d_d_fv", this->ogc_contacts.deformable.fv,
+		[&](MappedWorkspace<double>& mws, Element& conn) {
+			auto x = this->_get_d_x1(mws, stark, {conn["p"], conn["t0"], conn["t1"], conn["t2"]});
+			return distance_point_plane(x[0], x[1], x[2], x[3]);
+		});
+	add_edge_edge("ogc_contact_d_d_ee_", this->ogc_contacts.deformable.ee,
+		[&](MappedWorkspace<double>& mws, Element& conn) {
+			auto [ea, ea_rest] = this->_get_d_edge(mws, stark, {conn["ea0"], conn["ea1"]});
+			auto [eb, eb_rest] = this->_get_d_edge(mws, stark, {conn["eb0"], conn["eb1"]});
+			return std::make_tuple(ea, eb, ea_rest, eb_rest);
+		});
+
+	auto add_rigid = [&](const std::string& label, auto& weighted_conn, auto distance) {
+		auto* weights = &weighted_conn.weights;
+		stark.global_potential->add_potential(label, weighted_conn.conn,
+			[&, distance, weights](MappedWorkspace<double>& mws, Element& conn) {
+				return this->_ogc_barrier_potential(
+					mws, distance(mws, conn), conn["idx"], conn["group_a"], conn["group_b"], *weights);
+			});
+	};
+	add_rigid("ogc_contact_rb_rb_vv", this->ogc_contacts.rigid_body.vv,
+		[&](MappedWorkspace<double>& mws, Element& conn) {
+			auto p = this->_get_rb_x1(mws, stark, conn["a"], {conn["p"]});
+			auto q = this->_get_rb_x1(mws, stark, conn["b"], {conn["q"]});
+			return distance_point_point(p[0], q[0]);
+		});
+	add_rigid("ogc_contact_rb_rb_ev", this->ogc_contacts.rigid_body.ev,
+		[&](MappedWorkspace<double>& mws, Element& conn) {
+			auto p = this->_get_rb_x1(mws, stark, conn["a"], {conn["p"]});
+			auto e = this->_get_rb_x1(mws, stark, conn["b"], {conn["e0"], conn["e1"]});
+			return distance_point_line(p[0], e[0], e[1]);
+		});
+	add_rigid("ogc_contact_rb_rb_fv", this->ogc_contacts.rigid_body.fv,
+		[&](MappedWorkspace<double>& mws, Element& conn) {
+			auto p = this->_get_rb_x1(mws, stark, conn["a"], {conn["p"]});
+			auto t = this->_get_rb_x1(mws, stark, conn["b"], {conn["t0"], conn["t1"], conn["t2"]});
+			return distance_point_plane(p[0], t[0], t[1], t[2]);
+		});
+	add_edge_edge("ogc_contact_rb_rb_ee_", this->ogc_contacts.rigid_body.ee,
+		[&](MappedWorkspace<double>& mws, Element& conn) {
+			auto [ea, ea_rest] = this->_get_rb_edge(mws, stark, conn["a"], {conn["ea0"], conn["ea1"]});
+			auto [eb, eb_rest] = this->_get_rb_edge(mws, stark, conn["b"], {conn["eb0"], conn["eb1"]});
+			return std::make_tuple(ea, eb, ea_rest, eb_rest);
+		});
+
+	auto add_mixed = [&](const std::string& label, auto& weighted_conn, auto distance) {
+		auto* weights = &weighted_conn.weights;
+		stark.global_potential->add_potential(label, weighted_conn.conn,
+			[&, distance, weights](MappedWorkspace<double>& mws, Element& conn) {
+				return this->_ogc_barrier_potential(
+					mws, distance(mws, conn), conn["idx"], conn["group_a"], conn["group_b"], *weights);
+			});
+	};
+	add_mixed("ogc_contact_rb_d_vv", this->ogc_contacts.mixed.vv,
+		[&](MappedWorkspace<double>& mws, Element& conn) {
+			auto p = this->_get_rb_x1(mws, stark, conn["rb"], {conn["p"]});
+			auto q = this->_get_d_x1(mws, stark, {conn["q"]});
+			return distance_point_point(p[0], q[0]);
+		});
+	add_mixed("ogc_contact_rb_d_ev", this->ogc_contacts.mixed.rb_vertex_d_edge,
+		[&](MappedWorkspace<double>& mws, Element& conn) {
+			auto p = this->_get_rb_x1(mws, stark, conn["rb"], {conn["p"]});
+			auto e = this->_get_d_x1(mws, stark, {conn["e0"], conn["e1"]});
+			return distance_point_line(p[0], e[0], e[1]);
+		});
+	add_mixed("ogc_contact_d_rb_ev", this->ogc_contacts.mixed.d_vertex_rb_edge,
+		[&](MappedWorkspace<double>& mws, Element& conn) {
+			auto p = this->_get_d_x1(mws, stark, {conn["p"]});
+			auto e = this->_get_rb_x1(mws, stark, conn["rb"], {conn["e0"], conn["e1"]});
+			return distance_point_line(p[0], e[0], e[1]);
+		});
+	add_mixed("ogc_contact_rb_d_fv", this->ogc_contacts.mixed.rb_vertex_d_face,
+		[&](MappedWorkspace<double>& mws, Element& conn) {
+			auto p = this->_get_rb_x1(mws, stark, conn["rb"], {conn["p"]});
+			auto t = this->_get_d_x1(mws, stark, {conn["t0"], conn["t1"], conn["t2"]});
+			return distance_point_plane(p[0], t[0], t[1], t[2]);
+		});
+	add_mixed("ogc_contact_d_rb_fv", this->ogc_contacts.mixed.d_vertex_rb_face,
+		[&](MappedWorkspace<double>& mws, Element& conn) {
+			auto p = this->_get_d_x1(mws, stark, {conn["p"]});
+			auto t = this->_get_rb_x1(mws, stark, conn["rb"], {conn["t0"], conn["t1"], conn["t2"]});
+			return distance_point_plane(p[0], t[0], t[1], t[2]);
+		});
+	add_edge_edge("ogc_contact_rb_d_ee_", this->ogc_contacts.mixed.ee,
+		[&](MappedWorkspace<double>& mws, Element& conn) {
+			auto [ea, ea_rest] = this->_get_rb_edge(mws, stark, conn["rb"], {conn["ea0"], conn["ea1"]});
+			auto [eb, eb_rest] = this->_get_d_edge(mws, stark, {conn["eb0"], conn["eb1"]});
+			return std::make_tuple(ea, eb, ea_rest, eb_rest);
+		});
+}
+
 
 /* ========================================================================================== */
 /* ===================================  IPC POTENTIAL HELPERS  ============================== */
@@ -1277,6 +2058,21 @@ Scalar EnergyFrictionalContactIPC::_barrier_potential(const Scalar& d, const Sca
 		return -k * (dhat - d).powN(2) * log(d / dhat);
 	}
 }
+
+std::pair<Scalar, Scalar> EnergyFrictionalContactIPC::_ogc_barrier_potential(
+	MappedWorkspace<double>& mws,
+	const Scalar& d,
+	const Index& contact_idx,
+	const Index& group_a,
+	const Index& group_b,
+	const std::vector<double>& weights)
+{
+	Scalar dhat = this->_get_contact_distance(mws, group_a, group_b);
+	Scalar stiffness = mws.make_scalar(this->contact_stiffness);
+	Scalar weight = mws.make_scalar(weights, contact_idx);
+	return {weight * this->_barrier_potential(d, dhat, stiffness), d < dhat};
+}
+
 double EnergyFrictionalContactIPC::_barrier_force(const double d, const double dhat, const double k)
 {
 	if (this->ipc_barrier_type == IPCBarrierTypeIPC::Cubic) {

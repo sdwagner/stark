@@ -3,6 +3,7 @@
 #include <fmt/format.h>
 #include <BlockedSparseMatrix/solve_pcg.h>
 #include <Eigen/SparseCholesky>
+#include <cmath>
 #include <limits>
 #include <omp.h>
 #include <algorithm>
@@ -215,16 +216,23 @@ SolverReturn NewtonsMethod::solve()
         this->stats.n_projected_hessians += n_projected_hessians;
         logger->add_and_append("cg_iterations", this->last_cg_iterations);
 
-        // Convergence: Step tolerance
+        // Convergence: Step tolerance. Step-filtered solves check the actual
+        // filtered direction inside the line search instead.
         double du_max = this->du.cwiseAbs().maxCoeff();
-        this->output->print(fmt::format("du: {:.1e} | ", du_max), Verbosity::Medium);
-        if (newton_iteration >= this->settings.min_iterations && du_max < this->settings.step_tolerance) {
-            result = SolverReturn::Successful;
-            break;
+        const bool has_step_filters = this->callbacks->has_step_filters();
+        if (!has_step_filters) {
+            this->output->print(fmt::format("du: {:.1e} | ", du_max), Verbosity::Medium);
+            if (newton_iteration >= this->settings.min_iterations
+                && du_max < this->settings.step_tolerance) {
+                result = SolverReturn::Successful;
+                break;
+            }
         }
 
         // Line search
-        result = this->_line_search_inplace(E0, du_dot_grad, du_max);
+        result = this->_line_search_inplace(
+            E0, du_dot_grad, du_max,
+            newton_iteration >= this->settings.min_iterations);
 
         // User's convergence
         if (newton_iteration >= this->settings.min_iterations && this->callbacks->run_is_converged()) {
@@ -465,11 +473,16 @@ bool NewtonsMethod::_solve_linear_system(Eigen::VectorXd& du, const ElementHessi
     }
 }
 
-SolverReturn NewtonsMethod::_line_search_inplace(double E0, double du_dot_grad, double du_max)
+SolverReturn NewtonsMethod::_line_search_inplace(
+    double E0,
+    double du_dot_grad,
+    double du_max,
+    bool allow_filtered_convergence)
 {
     /*
-    * There are four line search checks. In order:
-    *   - [cap] Hard cap to the user-specified maximum a single step can take
+    * There are five line search checks. In order:
+    *   - [cap] Hard cap based on `settings.step_cap`.
+    *   - [filter] User direction filters.
     *   - [max] Hard cap based on `max_allowed_step()` callbacks. E.g. CCD.
     *   - [inv] Backtracking based on `is_intermediate_state_valid()` callbacks. E.g. penetration or inversions
     *   - [bt]  Backtracking based on Armijo sufficient descend using the global energy
@@ -489,9 +502,12 @@ SolverReturn NewtonsMethod::_line_search_inplace(double E0, double du_dot_grad, 
 
     /* ------------------------------------ Cap ----------------------------------- */
     if (du_max > this->settings.step_cap) {
-        retraction *= this->settings.step_cap / du_max;
-        this->du *= retraction;
+        const double cap_scale = this->settings.step_cap / du_max;
+        this->du *= cap_scale;
         du_max = this->settings.step_cap;
+        if (!this->callbacks->has_step_filters()) {
+            retraction *= cap_scale;
+        }
         this->output->print(fmt::format("du cap {:.1e} | ", du_max), Verbosity::Medium);
         this->stats.ls_cap_iterations++;
         logger->add_and_append("ls_cap", 1);
@@ -499,7 +515,58 @@ SolverReturn NewtonsMethod::_line_search_inplace(double E0, double du_dot_grad, 
     else {
         logger->add_and_append("ls_cap", 0);
     }
+
+    /* ---------------------------------- Filter ---------------------------------- */
+    if (this->callbacks->has_step_filters()) {
+        const Eigen::VectorXd du_before_filters = this->du;
+        const double safe_scale = this->callbacks->run_step_filters(
+            this->dofs_before_ls, this->du);
+        du_dot_grad = this->du.dot(this->grad);
+
+        if (!this->du.allFinite() || !std::isfinite(safe_scale)
+            || safe_scale <= 0.0 || safe_scale > 1.0) {
+            this->output->print_with_new_line(
+                "Newton failure: Step filter returned an invalid direction.",
+                Verbosity::Medium);
+            return SolverReturn::StepFilterFailure;
+        }
+
+        // A filter can legitimately truncate an otherwise descending direction
+        // to numerical zero. Honor the configured convergence criterion before
+        // replacing that converged step with the conservative scalar fallback.
+        du_max = this->du.cwiseAbs().maxCoeff();
+        if (allow_filtered_convergence
+            && du_max < this->settings.step_tolerance) {
+            this->output->print(
+                fmt::format("du: {:.1e} | ", du_max), Verbosity::Medium);
+            return SolverReturn::Successful;
+        }
+
+        if (du_dot_grad >= 0.0) {
+            this->du = safe_scale * du_before_filters;
+            du_dot_grad = this->du.dot(this->grad);
+            logger->add_and_append("step_filter_fallback", 1);
+        }
+        else {
+            logger->add_and_append("step_filter_fallback", 0);
+        }
+        if (!this->du.allFinite() || du_dot_grad >= 0.0) {
+            this->output->print_with_new_line(
+                "Newton failure: Step filter could not preserve descent.",
+                Verbosity::Medium);
+            return SolverReturn::StepFilterFailure;
+        }
+
+        du_max = this->du.cwiseAbs().maxCoeff();
+        this->output->print(
+            fmt::format("du: {:.1e} | ", du_max), Verbosity::Medium);
+        if (allow_filtered_convergence
+            && du_max < this->settings.step_tolerance) {
+            return SolverReturn::Successful;
+        }
+    }
     
+    /* ============================== Limit the step ============================== */
     /* ------------------------------------ Max ----------------------------------- */
     double max_step = this->callbacks->run_max_allowed_step(this->dofs_before_ls, this->du);
     if (max_step < 1.0) {

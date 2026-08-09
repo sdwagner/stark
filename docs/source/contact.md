@@ -41,6 +41,39 @@ params.intersection_test_enabled = true;
 simulation.interactions->contact->set_global_params(params);
 ```
 
+### Offset Geometric Contact (OGC)
+
+When STARK is built with `STARK_IPC_TOOLKIT_CONTACT=ON`, normal contact can use
+IPC Toolkit's Offset Geometric Contact collision set and trust-region step
+filter. The default remains IPC.
+
+```cpp
+stark::ContactGlobalParams params;
+params.set_contact_method(stark::ContactMethod::OGC)
+    .set_ogc_relaxed_radius_scaling(0.9)
+    .set_ogc_update_threshold(0.01)
+    .set_ogc_max_query_radius(0.01);
+simulation.interactions->contact->set_global_params(params);
+```
+
+Set the contact method before the simulation is initialized; changing between
+IPC and OGC afterward is rejected. OGC currently supports normal contact only;
+stored friction coefficients are ignored while OGC is active.
+Both triangle-point and edge-edge contact modes must remain enabled because the
+OGC feasible-region construction uses the complete collision stencil set.
+The OGC implementation keeps the collision set fixed during each Newton line
+search and filters the Newton direction before Armijo backtracking. Deformable
+steps are filtered per velocity block; rigid translation and rotation are
+filtered together and checked against the vertex trust regions after applying
+the exact rigid transform. The query radius grows from IPC Toolkit's
+contact-distance-derived minimum toward ordinary Newton motion, but is capped
+by `ogc_max_query_radius` (in scene length units). If a proposed correction
+exceeds that budget, STARK keeps the current local OGC query and uses swept CCD
+to scale the whole Newton direction for that iteration. This is important for
+localized fast motion: inflating the combined collision mesh from one fast
+vertex can create a prohibitively large global broad-phase query. Increase the
+cap only when the extra candidate memory is acceptable.
+
 
 ## Setting up frictional contact
 ### Setting Friction Between Pairs

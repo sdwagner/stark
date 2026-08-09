@@ -30,6 +30,7 @@ namespace symx
         std::vector<std::function<void()>>     on_armijo_fail;
         std::vector<std::function<bool()>>     is_converged;
         std::vector<std::function<bool()>>     is_converged_state_valid;
+        std::vector<std::function<double(const Eigen::VectorXd&, Eigen::VectorXd&)>> step_filters;
         std::vector<std::function<double(const Eigen::VectorXd&, const Eigen::VectorXd&)>> max_allowed_step;
         std::function<double(const Eigen::VectorXd&)> residual = default_residual;
         spContext context = nullptr;
@@ -74,7 +75,13 @@ namespace symx
         void add_on_armijo_fail(std::function<void()> f) { this->on_armijo_fail.push_back(f); }
         void add_is_converged(std::function<bool()> f) { this->is_converged.push_back(f); }
         void add_is_converged_state_valid(std::function<bool()> f) { this->is_converged_state_valid.push_back(f); }
+        // Mutates the Newton direction before line search. The return value is
+        // a conservative scalar in (0, 1] that can safely scale the unfiltered
+        // direction if the filtered direction no longer descends.
+        void add_step_filter(std::function<double(const Eigen::VectorXd&, Eigen::VectorXd&)> f) { this->step_filters.push_back(f); }
         void add_max_allowed_step(std::function<double(const Eigen::VectorXd&, const Eigen::VectorXd&)> f) { this->max_allowed_step.push_back(f); }
+
+        bool has_step_filters() const { return !this->step_filters.empty(); }
 
         // ---- Invoke callbacks (called by the solver) ----
 
@@ -126,6 +133,15 @@ namespace symx
         {
             auto _t = this->context->logger->time("is_converged_state_valid");
             return this->_run_bool(true, this->is_converged_state_valid);
+        }
+        double run_step_filters(const Eigen::VectorXd& x, Eigen::VectorXd& du)
+        {
+            auto _t = this->context->logger->time("step_filters");
+            double safe_scale = 1.0;
+            for (auto& f : this->step_filters) {
+                safe_scale = std::min(safe_scale, f(x, du));
+            }
+            return safe_scale;
         }
         double run_max_allowed_step(const Eigen::VectorXd& x, const Eigen::VectorXd& du)
         {

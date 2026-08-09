@@ -19,6 +19,7 @@ namespace symx
         LinearSystemSolveFailure,
         TooManyInvalidIntermediateIterations,
         StepDoesNotDescend,
+        StepFilterFailure,
         InvalidConvergedState,
     };
 

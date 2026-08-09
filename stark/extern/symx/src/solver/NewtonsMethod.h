@@ -93,7 +93,7 @@ namespace symx
 		void _decrease_projection(); // Search direction descends
 
 		bool _solve_linear_system(Eigen::VectorXd& du, const ElementHessians::spBSM& hess, const Eigen::VectorXd& grad, double residual_norm);
-		SolverReturn _line_search_inplace(double E0, double du_dot_grad, double du_max);
+		SolverReturn _line_search_inplace(double E0, double du_dot_grad, double du_max, bool allow_filtered_convergence);
 	};
 	using spNewtonsMethod = std::shared_ptr<NewtonsMethod>;
 }
