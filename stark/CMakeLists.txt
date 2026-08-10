@@ -226,7 +226,7 @@ target_include_directories(stark PUBLIC extern/TriangleMeshCollisionDetection/in
 target_include_directories(stark PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/extern/vtkio/include)
 
 target_link_libraries(stark usd usdGeom)
-target_include_directories(stark PRIVATE "${OPENUSD_ROOT}/include")
+target_include_directories(stark SYSTEM BEFORE PRIVATE "${OPENUSD_ROOT}/include")
 
 ## TriangleMeshDistance
 target_include_directories(stark PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/extern/TriangleMeshDistance/include)
