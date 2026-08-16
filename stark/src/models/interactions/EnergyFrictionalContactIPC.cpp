@@ -51,14 +51,20 @@ EnergyFrictionalContactIPC::EnergyFrictionalContactIPC(Stark& stark, const spPoi
 	stark.callbacks->add_before_simulation([&]() {
 		this->_validate_ogc_configuration();
 		this->configuration_locked = true;
+		// The contact method is selected through set_global_params() after this
+		// object is constructed. Register the OGC-specific filter only once that
+		// selection is final: an identity filter still switches Newton into its
+		// filtered line-search path, making IPC behave differently for no reason.
+		if (this->global_params.contact_method == ContactMethod::OGC) {
+			stark.callbacks->newton->add_step_filter(
+				[&](const Eigen::VectorXd& x, Eigen::VectorXd& du) -> double {
+					return this->_filter_ogc_step(stark, x, du);
+				}
+			);
+		}
 	});
 	stark.callbacks->add_before_time_step([&]() { this->_before_time_step__update_friction_contacts(stark); });
 	stark.callbacks->newton->add_before_step([&]() { this->_before_newton_step__update_ogc_contacts(stark); });
-	stark.callbacks->newton->add_step_filter(
-		[&](const Eigen::VectorXd& x, Eigen::VectorXd& du) -> double {
-			return this->_filter_ogc_step(stark, x, du);
-		}
-	);
 	stark.callbacks->newton->add_before_energy_evaluation([&]() { this->_before_energy_evaluation__update_contacts(stark); });
 	//stark.callbacks->newton->add_is_intermediate_state_valid([&]() { return this->_is_intermediate_state_valid(stark, false); });
 	stark.callbacks->newton->add_is_initial_state_valid([&]() { return this->_is_intermediate_state_valid(stark, true); });

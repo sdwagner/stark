@@ -1,6 +1,7 @@
 #pragma once
 #include "DeformablesMeshOutput.h"
 #include "deformables_energies_include.h"
+#include "surface/EnergyEpidermis.h"
 #include "surface/EnergyQuadraticBending.h"
 #include "surface/EnergyTriangleArea.h"
 #include "surface/EnergyTriangleStretching.h"
@@ -24,6 +25,7 @@ namespace stark
 		std::shared_ptr<EnergyPrescribedPositionsTetBarycentric> tet_prescribed_positions;
 		std::shared_ptr<EnergySegmentStrain> segment_strain;
 		std::shared_ptr<EnergyTriangleStrain> triangle_strain;
+		std::shared_ptr<EnergyEpidermis> epidermis;
 		std::shared_ptr<EnergyTriangleStretching> triangle_stretching;
 		std::shared_ptr<EnergyDiscreteShells> discrete_shells;
 		std::shared_ptr<EnergyQuadraticBending> triangle_quadratic_bending;
