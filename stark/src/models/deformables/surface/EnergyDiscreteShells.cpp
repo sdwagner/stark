@@ -7,6 +7,27 @@ using namespace stark;
 using namespace symx;
 constexpr double EPSILON = 1e-12;
 
+namespace {
+void update_hinge_rest_shape(const std::array<int, 4>& hinge,
+	const std::vector<Eigen::Vector3d>& vertices,
+	double& angle, double& edge_length, double& height)
+{
+	for (const int i : hinge)
+		if (i < 0 || i >= (int)vertices.size())
+			throw std::out_of_range("EnergyDiscreteShells::update_rest_shape: reference vertex index out of range");
+	const Eigen::Vector3d e0 = vertices[hinge[1]] - vertices[hinge[0]];
+	const Eigen::Vector3d e1 = vertices[hinge[2]] - vertices[hinge[0]];
+	const Eigen::Vector3d e2 = vertices[hinge[3]] - vertices[hinge[0]];
+	edge_length = e0.norm();
+	const Eigen::Vector3d n0 = e0.cross(e1);
+	const Eigen::Vector3d n1 = -e0.cross(e2);
+	if (edge_length <= EPSILON || n0.squaredNorm() <= EPSILON || n1.squaredNorm() <= EPSILON)
+		return; // Keep the last valid reference for degenerate target triangles.
+	angle = std::acos(std::clamp((1.0 - EPSILON) * n0.normalized().dot(n1.normalized()), -1.0, 1.0));
+	height = (n0.norm() + n1.norm()) / (6.0 * edge_length);
+}
+}
+
 EnergyDiscreteShells::EnergyDiscreteShells(Stark& stark, spPointDynamics dyn)
 	: dyn(dyn)
 {
@@ -104,6 +125,7 @@ EnergyDiscreteShells::Handler EnergyDiscreteShells::add(const PointSetHandler& s
 	this->bending_stiffness.push_back(params.stiffness);
 	this->bending_damping.push_back(params.damping);
 	this->flat_rest_angle.push_back(params.flat_rest_angle);
+	this->group_hinges.emplace_back();
 
 	// Find internal_angles (dihedral) connectivity
 	std::vector<std::array<int, 4>> internal_angles;
@@ -115,6 +137,7 @@ EnergyDiscreteShells::Handler EnergyDiscreteShells::add(const PointSetHandler& s
 
 		// Connectivity
 		const std::array<int, 4>& conn_loc = internal_angles[internal_angle_i];
+		this->group_hinges[group].push_back(conn_loc);
 		const std::array<int, 4> conn_glob = set.get_global_indices(conn_loc);
 		conn->numbered_push_back({ group, conn_glob[0], conn_glob[1], conn_glob[2], conn_glob[3] });
 
@@ -159,6 +182,7 @@ EnergyDiscreteShells::Handler EnergyDiscreteShells::add(const PointSetHandler& s
 	this->bending_stiffness.push_back(params.stiffness);
 	this->bending_damping.push_back(params.damping);
 	this->flat_rest_angle.push_back(params.flat_rest_angle);
+	this->group_hinges.emplace_back();
 
 	// Find internal_angles (dihedral) connectivity
 	std::vector<std::array<int, 4>> internal_angles;
@@ -170,6 +194,7 @@ EnergyDiscreteShells::Handler EnergyDiscreteShells::add(const PointSetHandler& s
 
 		// Connectivity
 		const std::array<int, 4>& conn_loc = internal_angles[internal_angle_i];
+		this->group_hinges[group].push_back(conn_loc);
 		const std::array<int, 4> conn_glob = set.get_global_indices(conn_loc);
 
 		conn->numbered_push_back({ group, conn_glob[0], conn_glob[1], conn_glob[2], conn_glob[3] });
@@ -240,4 +265,19 @@ void EnergyDiscreteShells::set_params(const Handler& handler, const Params& para
 	this->bending_stiffness[group] = params.stiffness;
 	this->bending_damping[group] = params.damping;
 	this->flat_rest_angle[group] = params.flat_rest_angle;
+}
+
+void EnergyDiscreteShells::update_rest_shape(const Handler& handler,
+	const std::vector<Eigen::Vector3d>& vertices)
+{
+	handler.exit_if_not_valid("EnergyDiscreteShells::update_rest_shape");
+	const int group = handler.get_idx();
+	int rest_idx = 0;
+	for (int g = 0; g < group; ++g)
+		rest_idx += static_cast<int>(this->group_hinges[g].size());
+	for (const auto& hinge : this->group_hinges[group]) {
+		update_hinge_rest_shape(hinge, vertices, this->rest_dihedral_angle_rad[rest_idx],
+			this->rest_edge_length[rest_idx], this->rest_height[rest_idx]);
+		++rest_idx;
+	}
 }

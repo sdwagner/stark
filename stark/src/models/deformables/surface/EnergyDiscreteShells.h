@@ -17,7 +17,13 @@ namespace stark
 			STARK_PARAM_NON_NEGATIVE(double, stiffness, 1e-6)
 			STARK_PARAM_DAMPING()
 		};
-		struct Handler { STARK_COMMON_HANDLER_CONTENTS(EnergyDiscreteShells, Params) };
+		struct Handler {
+			STARK_COMMON_HANDLER_CONTENTS(EnergyDiscreteShells, Params)
+			inline void update_rest_shape(const std::vector<Eigen::Vector3d>& vertices)
+			{
+				this->get_model()->update_rest_shape(*this, vertices);
+			}
+		};
 
 	private:
 		/* Fields */
@@ -36,6 +42,7 @@ namespace stark
 		std::vector<double> rest_dihedral_angle_rad; // per hinge
 		std::vector<double> rest_edge_length; // per hinge
 		std::vector<double> rest_height; // per hinge
+		std::vector<std::vector<std::array<int, 4>>> group_hinges;
 
 	public:
 		/* Methods */
@@ -44,5 +51,6 @@ namespace stark
 		Handler add(const PointSetHandler& set, const std::vector<std::array<int, 3>>& triangles, const std::map<std::pair<int,int>, double>& stitch_vertices, const Params& params);
 		Params get_params(const Handler& handler) const;
 		void set_params(const Handler& handler, const Params& params);
+		void update_rest_shape(const Handler& handler, const std::vector<Eigen::Vector3d>& vertices);
 	};
 }

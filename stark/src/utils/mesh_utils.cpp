@@ -310,32 +310,33 @@ void find_internal_angles(std::vector<std::array<int, 4>>& internal_angles, cons
 		For each edge in the triangle mesh, find the 2 nodes that are common neighbors of both edge end-points.
 	*/
 	internal_angles.clear();
-	if (triangles.size() == 0) {
-		return;
-	}
+	if (triangles.empty()) return;
 
-	std::vector<std::vector<int>> node_node_map;
-	find_node_node_map_simplex(node_node_map, &triangles[0][0], (int)triangles.size(), 3, n_nodes);
-	for (std::vector<int>& nodes : node_node_map) {
-		std::sort(nodes.begin(), nodes.end());  // std::set_intersection assumes sorted
-	}
-
-	std::vector<std::array<int, 2>> edges;
-	find_edges_from_simplices(edges, triangles, n_nodes);
-
-	std::vector<int> buffer;
-	internal_angles.reserve(edges.size());
-	for (int edge_i = 0; edge_i < (int)edges.size(); edge_i++) {
-		const std::array<int, 2>& edge = edges[edge_i];
-		const std::vector<int>& neighs_i = node_node_map[edge[0]];
-		const std::vector<int>& neighs_j = node_node_map[edge[1]];
-		buffer.clear();
-		std::set_intersection(neighs_i.begin(), neighs_i.end(), neighs_j.begin(), neighs_j.end(), std::back_inserter(buffer));
-		if (buffer.size() == 2) {
-			internal_angles.push_back({ edge[0], edge[1], buffer[0], buffer[1] });
+	// Common vertex neighbours are not equivalent to incident faces: in a valid
+	// manifold mesh a non-local vertex may be adjacent to both endpoints of an
+	// edge. Build the incidence directly from triangles instead.
+	std::map<std::array<int, 2>, std::vector<int>> edge_opposites;
+	for (const auto& tri : triangles) {
+		for (int i = 0; i < 3; ++i) {
+			const int a = tri[i];
+			const int b = tri[(i + 1) % 3];
+			const int opposite = tri[(i + 2) % 3];
+			if (a < 0 || b < 0 || opposite < 0 || a >= n_nodes || b >= n_nodes || opposite >= n_nodes) {
+				std::cout << "Stark error: triangle mesh index out of range." << std::endl;
+				exit(-1);
+			}
+			edge_opposites[{ std::min(a, b), std::max(a, b) }].push_back(opposite);
 		}
-		else if (buffer.size() > 2) {
-			std::cout << "Stark error: triangle mesh has edges with more than two incident triangles." << std::endl;
+	}
+
+	internal_angles.reserve(edge_opposites.size());
+	for (const auto& [edge, opposites] : edge_opposites) {
+		if (opposites.size() == 2) {
+			internal_angles.push_back({ edge[0], edge[1], opposites[0], opposites[1] });
+		}
+		else if (opposites.size() > 2) {
+			std::cout << "Stark error: edge (" << edge[0] << ", " << edge[1]
+				<< ") has " << opposites.size() << " incident triangles." << std::endl;
 			exit(-1);
 		}
 	}

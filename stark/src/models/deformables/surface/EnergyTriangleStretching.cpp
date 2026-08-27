@@ -38,11 +38,15 @@ stark::EnergyTriangleStretching::Handler stark::EnergyTriangleStretching::add(co
 
 	this->scale.push_back(params.scale);
 	this->stiffness.push_back(params.stiffness);
+	this->group_edges.emplace_back();
 
 	// Connectivity
 	symx::LabelledConnectivity<4>* conn = &this->conn_complete;
 	for (int tri_i = 0; tri_i < (int)triangles.size(); tri_i++) {
 		const std::array<int, 3>& conn_loc = triangles[tri_i];
+		this->group_edges[group].push_back({ conn_loc[0], conn_loc[1] });
+		this->group_edges[group].push_back({ conn_loc[1], conn_loc[2] });
+		this->group_edges[group].push_back({ conn_loc[2], conn_loc[0] });
 		const std::array<int, 3> conn_glob = set.get_global_indices(conn_loc);
 		conn->numbered_push_back({ group, conn_glob[0], conn_glob[1] });
 		rest_length.push_back((this->dyn->X[conn_glob[0]]-this->dyn->X[conn_glob[1]]).norm());
@@ -62,11 +66,13 @@ stark::EnergyTriangleStretching::Handler stark::EnergyTriangleStretching::add(co
 
 	this->scale.push_back(params.scale);
 	this->stiffness.push_back(params.stiffness);
+	this->group_edges.emplace_back();
 
 	// Connectivity
 	symx::LabelledConnectivity<4>* conn = &this->conn_complete;
 	for (int tri_i = 0; tri_i < (int)edges.size(); tri_i++) {
 		const std::array<int, 2>& conn_loc = edges[tri_i];
+		this->group_edges[group].push_back(conn_loc);
 		const std::array<int, 2> conn_glob = set.get_global_indices(conn_loc);
 		conn->numbered_push_back({ group, conn_glob[0], conn_glob[1] });
 		rest_length.push_back((this->dyn->X[conn_glob[0]]-this->dyn->X[conn_glob[1]]).norm());
@@ -82,12 +88,16 @@ stark::EnergyTriangleStretching::Handler stark::EnergyTriangleStretching::add(co
 
 	this->scale.push_back(params.scale);
 	this->stiffness.push_back(params.stiffness);
+	this->group_edges.emplace_back();
 
 	// Connectivity
 	symx::LabelledConnectivity<4>* conn = &this->conn_complete;
 	for (int tri_i = 0; tri_i < (int)triangles.size(); tri_i++)
 	{
 		const std::array<int, 3>& conn_loc = triangles[tri_i];
+		this->group_edges[group].push_back({ conn_loc[0], conn_loc[1] });
+		this->group_edges[group].push_back({ conn_loc[1], conn_loc[2] });
+		this->group_edges[group].push_back({ conn_loc[2], conn_loc[0] });
 		const std::array<int, 3> conn_glob = set.get_global_indices(conn_loc);
 
 		auto el = get_edge_lengths(conn_loc, stitched_vertices);
@@ -120,4 +130,21 @@ void stark::EnergyTriangleStretching::set_params(const Handler& handler, const P
 
 	this->scale[group] = params.scale;
 	this->stiffness[group] = params.stiffness;
+}
+
+void stark::EnergyTriangleStretching::update_rest_lengths(const Handler& handler,
+	const std::vector<Eigen::Vector3d>& vertices)
+{
+	handler.exit_if_not_valid("EnergyTriangleStretching::update_rest_lengths");
+	const int group = handler.get_idx();
+	const auto& edges = this->group_edges[group];
+
+	int rest_idx = 0;
+	for (int g = 0; g < group; ++g)
+		rest_idx += static_cast<int>(this->group_edges[g].size());
+	for (const auto& edge : edges) {
+		if (edge[0] < 0 || edge[1] < 0 || edge[0] >= (int)vertices.size() || edge[1] >= (int)vertices.size())
+			throw std::out_of_range("EnergyTriangleStretching::update_rest_lengths: reference vertex index out of range");
+		this->rest_length[rest_idx++] = (vertices[edge[0]] - vertices[edge[1]]).norm();
+	}
 }
