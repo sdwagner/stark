@@ -1127,7 +1127,7 @@ bool EnergyFrictionalContactIPC::_is_intermediate_state_valid(Stark& stark, bool
 	if (!this->global_params.intersection_test_enabled) return true;
 	if (this->is_empty()) return true;
 
-	this->_update_vertices(stark, stark.dt);
+	this->_update_vertices(stark, is_initial_check ? 0.0 : stark.dt);
 	if (this->ipc_mesh_dirty) this->_build_ipc_mesh();
 	this->_update_combined_V();
 
@@ -1143,7 +1143,7 @@ bool EnergyFrictionalContactIPC::_is_intermediate_state_valid(Stark& stark, bool
 
 bool EnergyFrictionalContactIPC::_is_state_valid(Stark& stark)
 {
-	return this->_is_intermediate_state_valid(stark, false);
+	return this->_is_intermediate_state_valid(stark, true);
 }
 
 void EnergyFrictionalContactIPC::_on_intermediate_state_invalid(Stark& stark)
