@@ -27,6 +27,7 @@ EnergyFrictionalContact::EnergyFrictionalContact(Stark& stark, const spPointDyna
 	stark.callbacks->add_on_time_step_accepted([&]() { this->_on_time_step_accepted(stark); });
 	stark.callbacks->add_should_continue_execution([&]() { return this->_should_continue_execution(stark); });
 	stark.callbacks->add_is_current_collision_state_valid([&]() {return this->_is_state_valid(stark);});
+	stark.callbacks->add_is_next_collision_state_valid([&]() { return this->_is_intermediate_state_valid(stark, /*is_initial_check=*/false); });
 
 	// Contact
 	this->_energies_contact_deformables(stark);
@@ -1481,4 +1482,3 @@ std::string EnergyFrictionalContact::_get_friction_label(const std::string physi
 	}
 	return output;
 }
-

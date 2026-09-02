@@ -73,6 +73,7 @@ EnergyFrictionalContactIPC::EnergyFrictionalContactIPC(Stark& stark, const spPoi
 	stark.callbacks->add_on_time_step_accepted([&]() { this->_on_time_step_accepted(stark); });
 	stark.callbacks->add_should_continue_execution([&]() { return this->_should_continue_execution(stark); });
 	stark.callbacks->add_is_current_collision_state_valid([&]() { return this->_is_state_valid(stark); });
+	stark.callbacks->add_is_next_collision_state_valid([&]() { return this->_is_intermediate_state_valid(stark, false); });
 
 	stark.callbacks->newton->add_max_allowed_step(
 		[&](const Eigen::VectorXd& x, const Eigen::VectorXd& du) -> double {

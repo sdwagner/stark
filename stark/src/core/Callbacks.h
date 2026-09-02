@@ -26,6 +26,7 @@ namespace stark
 		std::vector<std::function<bool()>> should_continue_execution;
 		std::vector<std::function<void()>> write_frame;
 		std::vector<std::function<bool()>> is_current_collision_valid;
+		std::vector<std::function<bool()>> is_next_collision_valid;
 		symx::spContext context;
 
 		/* Methods */
@@ -56,6 +57,7 @@ namespace stark
 		void add_on_time_step_accepted(std::function<void()> f) { this->on_time_step_accepted.push_back(f); };
 		void add_write_frame(std::function<void()> f) { this->write_frame.push_back(f); };
 		void add_is_current_collision_state_valid(std::function<bool()> f) { this->is_current_collision_valid.push_back(f); };
+		void add_is_next_collision_state_valid(std::function<bool()> f) { this->is_next_collision_valid.push_back(f); };
 		void add_should_continue_execution(std::function<bool()> f) { this->should_continue_execution.push_back(f); };
 
 		// Run
@@ -87,6 +89,11 @@ namespace stark
 		{
 			auto _t = this->context->logger->time("is_current_collision_valid");
 			return this->_run_bool(this->is_current_collision_valid);
+		};
+		bool run_is_next_collision_state_valid()
+		{
+			auto _t = this->context->logger->time("is_next_collision_valid");
+			return this->_run_bool(this->is_next_collision_valid);
 		};
 	};
 	using spCallbacks = std::shared_ptr<Callbacks>;
