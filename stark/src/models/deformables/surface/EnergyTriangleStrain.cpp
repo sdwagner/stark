@@ -19,7 +19,6 @@ EnergyTriangleStrain::EnergyTriangleStrain(Stark& stark, spPointDynamics dyn)
 
 			// Create symbols
 			std::vector<Vector> x0 = mws.make_vectors(this->dyn->x0.data, triangle);
-			std::vector<Vector> X = mws.make_vectors(this->dyn->X.data, triangle);
 			Scalar scale = mws.make_scalar(this->scale, conn["group"]);
 			Scalar thickness = mws.make_scalar(this->thickness, conn["group"]);
 			Scalar e = mws.make_scalar(this->youngs_modulus, conn["group"]);
@@ -38,9 +37,6 @@ EnergyTriangleStrain::EnergyTriangleStrain(Stark& stark, spPointDynamics dyn)
 			std::vector<Vector> v1 = mws.make_vectors(this->dyn->v1.data, triangle);
 			std::vector<Vector> x1 = time_integration(x0, v1, dt);
 
-
-			// Scaling
-			std::vector<Vector> Xs = { scale * X[0], scale * X[1], scale * X[2] };
 
 			// Kinematics
 			Matrix DXinv = Matrix(collect_scalars({DXinv_vec}), {2,2});
@@ -93,7 +89,6 @@ EnergyTriangleStrain::EnergyTriangleStrain(Stark& stark, spPointDynamics dyn)
 			// Create symbols
 			std::vector<Vector> v1 = mws.make_vectors(this->dyn->v1.data, triangle);
 			std::vector<Vector> x0 = mws.make_vectors(this->dyn->x0.data, triangle);
-			std::vector<Vector> X = mws.make_vectors(this->dyn->X.data, triangle);
 			Scalar rest_area_unscaled = mws.make_scalar(this->rest_area, conn["idx"]);
 			Vector DXinv_vec = mws.make_vector(this->inv_rest_jacobian, conn["idx"]);
 			Scalar scale = mws.make_scalar(this->scale, conn["group"]);
@@ -108,8 +103,6 @@ EnergyTriangleStrain::EnergyTriangleStrain(Stark& stark, spPointDynamics dyn)
 			// Time integration
 			std::vector<Vector> x1 = time_integration(x0, v1, dt);
 
-			// Scaling
-			std::vector<Vector> Xs = { scale * X[0], scale * X[1], scale * X[2] };
 
 			// Kinematics
 			Matrix DXinv = Matrix(collect_scalars({DXinv_vec}), {2,2});

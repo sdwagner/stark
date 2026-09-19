@@ -25,6 +25,7 @@ namespace stark
 		int current_time_step = 0;
 		double dt = -1.0;
 		Eigen::Vector3d gravity = { 0.0, 0.0, -9.81 };
+		symx::spNewtonsMethod newton;
 
 		/* Methods */
 		Stark(const Settings& settings);
@@ -37,7 +38,6 @@ namespace stark
 
 	private:
 		/* Fields */
-		symx::spNewtonsMethod newton;
 		bool is_init = false;
 		double next_frame_time = -std::numeric_limits<double>::epsilon();
 		double execution_time = 0.0;
