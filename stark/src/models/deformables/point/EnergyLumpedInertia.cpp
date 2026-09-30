@@ -51,6 +51,30 @@ EnergyLumpedInertia::EnergyLumpedInertia(Stark& stark, const spPointDynamics dyn
 	);
 }
 
+void EnergyLumpedInertia::apply_inverse_mass(Eigen::Ref<Eigen::VectorXd> force) const
+{
+	const int expected_size = 3 * this->dyn->size();
+	if (force.size() != expected_size) {
+		std::cout << "Stark error: EnergyLumpedInertia::apply_inverse_mass() expected "
+			<< expected_size << " force entries, got " << force.size() << std::endl;
+		exit(-1);
+	}
+
+	for (const std::array<int, 3>& entry : this->conn.data) {
+		const int lumped_volume_index = entry[0];
+		const int global_point_index = entry[1];
+		const int group = entry[2];
+		const double mass = this->density[group] * this->lumped_volume[lumped_volume_index];
+
+		if (mass <= 0.0) {
+			std::cout << "Stark error: EnergyLumpedInertia::apply_inverse_mass() found a non-positive mass." << std::endl;
+			exit(-1);
+		}
+
+		force.segment<3>(3 * global_point_index) /= mass;
+	}
+}
+
 EnergyLumpedInertia::Handler EnergyLumpedInertia::add(const PointSetHandler& set, const std::vector<int>& points, const std::vector<double>& lumped_volume, const Params& params)
 {
 	set.exit_if_not_valid("EnergyLumpedInertia::add");

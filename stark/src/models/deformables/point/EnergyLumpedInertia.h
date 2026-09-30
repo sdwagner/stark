@@ -52,5 +52,8 @@ namespace stark
 		Params get_params(const Handler& idx) const;
 		void set_params(const Handler& idx, const Params& params);
 		double get_mass(const Handler& idx) const;
+		// Converts a force residual for the point-dynamics DoF block to an
+		// acceleration residual by applying the inverse lumped mass matrix.
+		void apply_inverse_mass(Eigen::Ref<Eigen::VectorXd> force) const;
 	};	
 }
