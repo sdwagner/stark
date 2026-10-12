@@ -47,7 +47,7 @@ option(STARK_IPC_TOOLKIT_CONTACT
 
 # Dependencies
 set(SYMX_EIGEN_PUBLIC ON)
-set(SYMX_FMT_PUBLIC   ON)
+set(SYMX_FMT_PUBLIC   OFF)
 set(SYMX_HESS_STORAGE_FLOAT "double" CACHE STRING "Storage type for Hessian matrices (float or double)" FORCE)
 
 if(NOT TARGET Eigen3::Eigen)
