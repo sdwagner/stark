@@ -139,7 +139,8 @@ EnergyDiscreteShells::Handler EnergyDiscreteShells::add(const PointSetHandler& s
 		const std::array<int, 4>& conn_loc = internal_angles[internal_angle_i];
 		this->group_hinges[group].push_back(conn_loc);
 		const std::array<int, 4> conn_glob = set.get_global_indices(conn_loc);
-		conn->numbered_push_back({ group, conn_glob[0], conn_glob[1], conn_glob[2], conn_glob[3] });
+		// "idx" points into the rest data, which both connectivities share
+		conn->push_back({ (int)this->rest_edge_length.size(), group, conn_glob[0], conn_glob[1], conn_glob[2], conn_glob[3] });
 
 		// Fetch coordinates and compute edges
 		const Eigen::Vector3d e0 = this->dyn->X[conn_glob[1]] - this->dyn->X[conn_glob[0]];
@@ -197,7 +198,8 @@ EnergyDiscreteShells::Handler EnergyDiscreteShells::add(const PointSetHandler& s
 		this->group_hinges[group].push_back(conn_loc);
 		const std::array<int, 4> conn_glob = set.get_global_indices(conn_loc);
 
-		conn->numbered_push_back({ group, conn_glob[0], conn_glob[1], conn_glob[2], conn_glob[3] });
+		// "idx" points into the rest data, which both connectivities share
+		conn->push_back({ (int)this->rest_edge_length.size(), group, conn_glob[0], conn_glob[1], conn_glob[2], conn_glob[3] });
 
 		// Fetch coordinates and compute edges
 		const Eigen::Vector3d e0 = this->dyn->X[conn_glob[1]] - this->dyn->X[conn_glob[0]];

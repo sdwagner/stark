@@ -22,7 +22,7 @@ EnergyPrescribedPositions::EnergyPrescribedPositions(Stark& stark, spPointDynami
 			Vector v1 = mws.make_vector(this->dyn->v1.data, node["point"]);
 			Vector x0 = mws.make_vector(this->dyn->x0.data, node["point"]);
 			Vector x1_prescribed = mws.make_vector(this->target_positions, node["idx"]);
-			Scalar k = mws.make_scalar(this->stiffness, node["group"]);
+			Scalar k = mws.make_scalar(this->stiffness, node["idx"]);
 			Scalar dt = mws.make_scalar(stark.dt);
 
 			// Time integration
@@ -127,13 +127,15 @@ EnergyPrescribedPositions::Params EnergyPrescribedPositions::get_params(const Ha
 	handler.exit_if_not_valid("EnergyPrescribedPositions::get_params");
 
 	const int group = handler.get_idx();
-	if (group < 0 || group >= (int)this->stiffness.size()) {
+	if (group < 0 || group >= (int)this->tolerance.size()) {
 		std::cout << "Stark error: EnergyPrescribedPositions::get_params() found an invalid index." << std::endl;
 		exit(-1);
 	}
 
+	// Stiffness is stored per point; report the group's first entry.
+	const auto [begin, end] = this->group_begin_end[group];
 	Params params;
-	params.stiffness = this->stiffness[group];
+	params.stiffness = (begin < end) ? this->stiffness[begin] : 0.0;
 	params.tolerance = this->tolerance[group];
 	return params;
 }
@@ -142,12 +144,15 @@ void EnergyPrescribedPositions::set_params(const Handler& handler, const Params&
 	handler.exit_if_not_valid("EnergyPrescribedPositions::set_params");
 
 	const int group = handler.get_idx();
-	if (group < 0 || group >= (int)this->stiffness.size()) {
+	if (group < 0 || group >= (int)this->tolerance.size()) {
 		std::cout << "Stark error: EnergyPrescribedPositions::set_params() found an invalid index." << std::endl;
 		exit(-1);
 	}
 
-	this->stiffness[group] = params.stiffness;
+	const auto [begin, end] = this->group_begin_end[group];
+	for (int i = begin; i < end; i++) {
+		this->stiffness[i] = params.stiffness;
+	}
 	this->tolerance[group] = params.tolerance;
 }
 void EnergyPrescribedPositions::set_transformation(const Handler& handler, const Eigen::Vector3d& t, const Eigen::Matrix3d& R)
@@ -257,7 +262,10 @@ bool EnergyPrescribedPositions::_is_converged_state_valid(Stark& stark)
 		const double tol = this->tolerance[group];
 		if (sq_distance > tol*tol) {
 			is_valid = false;
-			this->stiffness[group] *= 2.0;
+			const auto [begin, end] = this->group_begin_end[group];
+			for (int j = begin; j < end; j++) {
+				this->stiffness[j] *= 2.0;
+			}
 			break;
 		}
 	}

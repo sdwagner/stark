@@ -72,7 +72,7 @@ namespace stark
 		symx::LabelledConnectivity<3> conn{ { "idx", "point", "group" }};
 
 		std::vector<Eigen::Vector3d> target_positions; // per point
-		std::vector<double> stiffness; // per group
+		std::vector<double> stiffness; // per point
 		std::vector<double> tolerance; // per group
 
 		std::vector<std::array<int, 2>> group_begin_end; // per group  (for tolerance checking purposes)
@@ -80,8 +80,8 @@ namespace stark
 
 		symx::LabelledConnectivity<3> conn_aniso{ { "idx", "point", "group" }};
 		std::vector<Eigen::Vector3d> target_positions_aniso; // per point
-		std::vector<double> stiffness_aniso_normal; // per group
-		std::vector<double> stiffness_aniso_tangent; // per group
+		std::vector<double> stiffness_aniso_normal; // per point
+		std::vector<double> stiffness_aniso_tangent; // per point
 		std::vector<double> tolerance_aniso; // per group
 		std::vector<Eigen::Vector3d> normal_aniso;
 		std::vector<std::array<int, 2>> group_begin_end_aniso; // per group  (for tolerance checking purposes)

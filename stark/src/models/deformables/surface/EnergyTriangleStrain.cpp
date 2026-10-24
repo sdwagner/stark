@@ -150,7 +150,8 @@ EnergyTriangleStrain::Handler EnergyTriangleStrain::add(const PointSetHandler& s
 	for (int tri_i = 0; tri_i < (int)triangles.size(); tri_i++) {
 		const std::array<int, 3>& conn_loc = triangles[tri_i];
 		const std::array<int, 3> conn_glob = set.get_global_indices(conn_loc);
-		conn->numbered_push_back({ group, conn_glob[0], conn_glob[1], conn_glob[2] });
+		// "idx" points into the rest data, which both connectivities share
+		conn->push_back({ (int)this->rest_area.size(), group, conn_glob[0], conn_glob[1], conn_glob[2] });
 		rest_area.push_back(triangle_area(this->dyn->X[conn_glob[0]], this->dyn->X[conn_glob[1]], this->dyn->X[conn_glob[2]]));
 		std::array<double, 3> el = {
 			(this->dyn->X[conn_glob[0]] - this->dyn->X[conn_glob[1]]).norm(),
@@ -192,7 +193,8 @@ EnergyTriangleStrain::Handler EnergyTriangleStrain::add(const PointSetHandler& s
 		const std::array<int, 3>& conn_loc = triangles[tri_i];
 		const std::array<int, 3> conn_glob = set.get_global_indices(conn_loc);
 		std::array<double, 3> l = get_edge_lengths(conn_loc, stitched_vertices);
-		conn->numbered_push_back({ group, conn_glob[0], conn_glob[1], conn_glob[2] });
+		// "idx" points into the rest data, which both connectivities share
+		conn->push_back({ (int)this->rest_area.size(), group, conn_glob[0], conn_glob[1], conn_glob[2] });
 		rest_area.push_back(triangle_area(l));
 
 		double height = 2 * triangle_area(l) / l[0];
