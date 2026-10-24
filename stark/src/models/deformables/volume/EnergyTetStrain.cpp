@@ -140,7 +140,8 @@ EnergyTetStrain::Handler EnergyTetStrain::add(const PointSetHandler& set, const 
 	for (int tet_i = 0; tet_i < (int)tets.size(); tet_i++) {
 		const std::array<int, 4>& conn_loc = tets[tet_i];
 		const std::array<int, 4> conn_glob = set.get_global_indices(conn_loc);
-		conn->numbered_push_back({ group, conn_glob[0], conn_glob[1], conn_glob[2], conn_glob[3] });
+		// "idx" points into the rest data, which both connectivities share
+		conn->push_back({ (int)this->rest_volume.size(), group, conn_glob[0], conn_glob[1], conn_glob[2], conn_glob[3] });
 		Eigen::MatrixXd x = Eigen::MatrixXd::Zero(3,4);
 		x.col(0) = params.scale*this->dyn->X[conn_glob[0]];
 		x.col(1) = params.scale*this->dyn->X[conn_glob[1]];
