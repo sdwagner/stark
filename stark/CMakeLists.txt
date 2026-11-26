@@ -88,6 +88,8 @@ set(MODELS_DEFORMABLES_FILES
 
 	src/models/deformables/surface/EnergyTriangleStrain.cpp
 	src/models/deformables/surface/EnergyTriangleStrain.h
+	src/models/deformables/surface/EnergyTriangleOrthotropicStVK.cpp
+	src/models/deformables/surface/EnergyTriangleOrthotropicStVK.h
 	src/models/deformables/surface/EnergyEpidermis.cpp
 	src/models/deformables/surface/EnergyEpidermis.h
 	src/models/deformables/surface/EnergyDiscreteShells.cpp

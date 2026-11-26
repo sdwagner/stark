@@ -4,6 +4,7 @@
 #include "surface/EnergyEpidermis.h"
 #include "surface/EnergyQuadraticBending.h"
 #include "surface/EnergyTriangleArea.h"
+#include "surface/EnergyTriangleOrthotropicStVK.h"
 #include "surface/EnergyTriangleStretching.h"
 #include "volume/EnergyPrescribedPositionsTetBarycentric.h"
 
@@ -25,6 +26,7 @@ namespace stark
 		std::shared_ptr<EnergyPrescribedPositionsTetBarycentric> tet_prescribed_positions;
 		std::shared_ptr<EnergySegmentStrain> segment_strain;
 		std::shared_ptr<EnergyTriangleStrain> triangle_strain;
+		std::shared_ptr<EnergyTriangleOrthotropicStVK> triangle_orthotropic_stvk;
 		std::shared_ptr<EnergyEpidermis> epidermis;
 		std::shared_ptr<EnergyTriangleStretching> triangle_stretching;
 		std::shared_ptr<EnergyDiscreteShells> discrete_shells;

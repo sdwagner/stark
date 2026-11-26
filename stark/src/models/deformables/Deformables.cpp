@@ -13,6 +13,7 @@ Deformables::Deformables(Stark& stark, spPointDynamics dyn)
 	this->tet_prescribed_positions = std::make_shared<EnergyPrescribedPositionsTetBarycentric>(stark, dyn);
 	this->segment_strain = std::make_shared<EnergySegmentStrain>(stark, dyn);
 	this->triangle_strain = std::make_shared<EnergyTriangleStrain>(stark, dyn);
+	this->triangle_orthotropic_stvk = std::make_shared<EnergyTriangleOrthotropicStVK>(stark, dyn);
 	this->epidermis = std::make_shared<EnergyEpidermis>(stark, dyn);
 	this->triangle_stretching = std::make_shared<EnergyTriangleStretching>(stark, dyn);
 	this->discrete_shells = std::make_shared<EnergyDiscreteShells>(stark, dyn);
